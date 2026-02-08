@@ -1,5 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { CheckoutButton } from "@/components/subscription/CheckoutButton";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 interface PricingTier {
   name: string;
@@ -48,9 +51,12 @@ const tiers: PricingTier[] = [
 ];
 
 export function Pricing() {
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   return (
-    <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-      {tiers.map((tier) => (
+    <>
+      <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        {tiers.map((tier) => (
         <div 
           key={tier.name}
           className={cn(
@@ -81,11 +87,31 @@ export function Pricing() {
               </li>
             ))}
           </ul>
-          <Button variant={tier.buttonVariant} size="lg" className="w-full">
-            {tier.buttonText}
-          </Button>
+          {tier.name === "Pro" ? (
+            <CheckoutButton
+              buttonText={tier.buttonText}
+              variant={tier.buttonVariant as any}
+              className="w-full text-base h-11"
+            />
+          ) : (
+            <Button
+              variant={tier.buttonVariant}
+              size="lg"
+              className="w-full"
+              onClick={() => setAuthModalOpen(true)}
+            >
+              {tier.buttonText}
+            </Button>
+          )}
         </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <AuthModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        defaultMode="signup"
+      />
+    </>
   );
 }

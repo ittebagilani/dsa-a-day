@@ -5,6 +5,9 @@ import { CodeBlock } from "@/components/CodeBlock";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Challenge } from "@/data/challenges";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserProgress, useRecordAttempt } from "@/hooks/use-progress";
+import { useToast } from "@/hooks/use-toast";
 
 interface PuzzleSolverProps {
   challenge: Challenge;
@@ -15,6 +18,11 @@ interface PuzzleSolverProps {
 type SolveStatus = "unsolved" | "solved" | "failed";
 
 export function PuzzleSolver({ challenge, isPremium = false, onComplete }: PuzzleSolverProps) {
+  const { user } = useAuth();
+  const { data: progress, isLoading: progressLoading } = useUserProgress(challenge.id);
+  const recordAttempt = useRecordAttempt();
+  const { toast } = useToast();
+
   const [userAnswer, setUserAnswer] = useState("");
   const [status, setStatus] = useState<SolveStatus>("unsolved");
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -27,13 +35,24 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     : [];
 
   useEffect(() => {
-    // Reset state when challenge changes
-    setUserAnswer("");
-    setStatus("unsolved");
-    setHintsUsed(0);
-    setShowExplanation(false);
-    setAttempts(0);
-  }, [challenge.id]);
+    // Load saved progress when challenge changes or progress is fetched
+    if (progress) {
+      setStatus(progress.status);
+      setAttempts(progress.attempts);
+      setHintsUsed(progress.hints_used);
+      setUserAnswer(progress.user_answer || "");
+      if (progress.status === "solved" || progress.status === "failed") {
+        setShowExplanation(true);
+      }
+    } else {
+      // Reset state when no progress or new challenge
+      setUserAnswer("");
+      setStatus("unsolved");
+      setHintsUsed(0);
+      setShowExplanation(false);
+      setAttempts(0);
+    }
+  }, [challenge.id, progress]);
 
   const normalizeAnswer = (answer: string): string => {
     return answer
@@ -43,21 +62,47 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       .toLowerCase();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const normalizedUser = normalizeAnswer(userAnswer);
     const normalizedCorrect = normalizeAnswer(challenge.correctAnswer);
-    
+
     // Also check without the semicolon variations
     const isCorrect = normalizedUser === normalizedCorrect ||
       normalizedUser === normalizedCorrect.replace(';', '') ||
       normalizedUser + ';' === normalizedCorrect;
-    
-    setAttempts(prev => prev + 1);
-    
+
+    const newAttempts = attempts + 1;
+    setAttempts(newAttempts);
+
+    // Save progress to database if user is logged in
+    if (user) {
+      try {
+        await recordAttempt.mutateAsync({
+          challengeId: challenge.id,
+          isCorrect,
+          userAnswer,
+          hintsUsed,
+        });
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Failed to save progress',
+          description: 'Your answer was checked but progress was not saved.',
+        });
+      }
+    }
+
     if (isCorrect) {
       setStatus("solved");
       onComplete?.(true);
-    } else if (attempts >= 2) {
+      if (user) {
+        toast({
+          title: '🎉 Correct!',
+          description: `You solved it in ${newAttempts} attempt${newAttempts !== 1 ? 's' : ''}!`,
+        });
+      }
+    } else if (newAttempts >= 3) {
       setStatus("failed");
       onComplete?.(false);
     }
@@ -100,9 +145,10 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       {/* Code Block */}
       <div className="rounded-lg border bg-code-bg overflow-hidden mb-6">
         <div className="p-4">
-          <CodeBlock 
-            code={challenge.code} 
-            highlightLines={challenge.bugLine ? [challenge.bugLine] : []} 
+          <CodeBlock
+            code={challenge.code}
+            language="python"
+            highlightLines={challenge.bugLine ? [challenge.bugLine] : []}
           />
         </div>
       </div>

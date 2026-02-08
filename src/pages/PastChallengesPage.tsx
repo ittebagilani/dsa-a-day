@@ -4,15 +4,15 @@ import { Footer } from "@/components/Footer";
 import { PuzzleSolver } from "@/components/PuzzleSolver";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Button } from "@/components/ui/button";
-import { getPastChallenges, Challenge } from "@/data/challenges";
-import { cn } from "@/lib/utils";
+import { Challenge } from "@/data/challenges";
+import { usePastChallenges } from "@/hooks/use-challenges";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { Link } from "react-router-dom";
 
 const PastChallengesPage = () => {
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
-  const pastChallenges = getPastChallenges();
-  
-  // Mock: assume user is premium for this page (would come from auth in real app)
-  const isPremium = true;
+  const { data: pastChallenges = [], isLoading } = usePastChallenges();
+  const { isPremium, loading: subLoading } = useSubscription();
 
   const getChallengeTypeLabel = (type: Challenge["type"]): string => {
     switch (type) {
@@ -21,6 +21,18 @@ const PastChallengesPage = () => {
       case "find-problem": return "Find Problem";
     }
   };
+
+  if (subLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!isPremium) {
     return (
@@ -33,7 +45,7 @@ const PastChallengesPage = () => {
               Access to past challenges is available for premium users only.
             </p>
             <Button variant="hero" asChild>
-              <a href="/pricing">Upgrade to Premium</a>
+              <Link to="/pricing">Upgrade to Premium</Link>
             </Button>
           </div>
         </main>
@@ -78,7 +90,11 @@ const PastChallengesPage = () => {
             </div>
             
             <div className="space-y-3">
-              {pastChallenges.length === 0 ? (
+              {isLoading ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Loading challenges...
+                </p>
+              ) : pastChallenges.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   No past challenges available yet. Check back tomorrow!
                 </p>
