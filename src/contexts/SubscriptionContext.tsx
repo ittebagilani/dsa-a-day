@@ -1,12 +1,15 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { supabase } from '@/lib/supabase';
+import { getCollection } from '@/lib/mongodb';
 
 interface Subscription {
-  id: string;
+  _id: string;
+  user_id: string;
   status: 'active' | 'inactive' | 'canceled' | 'past_due';
   plan_type: 'free' | 'pro';
-  current_period_end: string | null;
+  current_period_end: Date | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 interface SubscriptionContextType {
@@ -30,21 +33,20 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (error) {
-      if (error.code !== 'PGRST116') {
-        // PGRST116 = not found, which is okay for new users
-        console.error('Error fetching subscription:', error);
+    try {
+      const collection = await getCollection('subscriptions');
+      const data = await collection.findOne({ user_id: user.id });
+      
+      if (data) {
+        setSubscription(data as Subscription);
+      } else {
+        setSubscription(null);
       }
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
       setSubscription(null);
-    } else {
-      setSubscription(data as Subscription);
     }
+    
     setLoading(false);
   };
 
@@ -52,29 +54,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     fetchSubscription();
   }, [user]);
 
-  // Set up real-time subscription to changes
+  // For simplicity, we'll poll for changes periodically
+  // In a real app, you might use WebSocket or Server-Sent Events
   useEffect(() => {
     if (!user) return;
-
-    const channel = supabase
-      .channel('subscription-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchSubscription();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    
+    const interval = setInterval(() => {
+      fetchSubscription();
+    }, 30000); // Poll every 30 seconds
+    
+    return () => clearInterval(interval);
   }, [user]);
 
   const isPremium = subscription?.status === 'active' && subscription?.plan_type === 'pro';

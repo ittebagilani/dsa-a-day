@@ -1,8 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { challenges } from '../data/challenges';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { connectToDatabase } from '@/lib/mongodb';
 
 // Load environment variables from .env file
 const __filename = fileURLToPath(import.meta.url);
@@ -10,28 +10,27 @@ const __dirname = dirname(__filename);
 const envPath = resolve(__dirname, '../../.env');
 config({ path: envPath });
 
-// Use environment variables
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// Check for MongoDB URI
+const mongoUri = process.env.MONGODB_URI || '';
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Error: Missing Supabase environment variables');
+if (!mongoUri) {
+  console.error('❌ Error: Missing MongoDB environment variables');
   console.error('');
   console.error('Make sure your .env file contains:');
-  console.error('  VITE_SUPABASE_URL=https://your-project.supabase.co');
-  console.error('  SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here');
+  console.error('  MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database');
   console.error('');
-  console.error('Get your service role key from:');
-  console.error('  Supabase Dashboard → Settings → API → service_role key');
+  console.error('Get your MongoDB connection string from:');
+  console.error('  MongoDB Atlas Dashboard → Database → Connect → Drivers');
   console.error('');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
 async function migrateChallenges() {
-  console.log('🚀 Starting challenge migration...');
+  console.log('🚀 Starting challenge migration to MongoDB...');
   console.log(`📊 Total challenges to migrate: ${challenges.length}\n`);
+
+  const { db } = await connectToDatabase();
+  const collection = db.collection('challenges');
 
   let successCount = 0;
   let errorCount = 0;
@@ -45,24 +44,26 @@ async function migrateChallenges() {
       title: challenge.title,
       description: challenge.description,
       code: challenge.code,
-      bug_line: challenge.bugLine || null,
-      correct_answer: challenge.correctAnswer,
+      bugLine: challenge.bugLine || null,
+      correctAnswer: challenge.correctAnswer,
       hints: challenge.hints,
       explanation: challenge.explanation,
       is_active: true,
+      created_at: new Date(),
     };
 
-    const { error } = await supabase
-      .from('challenges')
-      .upsert(data, { onConflict: 'id' });
-
-    if (error) {
+    try {
+      await collection.replaceOne(
+        { id: challenge.id },
+        data,
+        { upsert: true }
+      );
+      console.log(`✅ Migrated challenge ${challenge.id}: ${challenge.title}`);
+      successCount++;
+    } catch (error: any) {
       console.error(`❌ Error migrating challenge ${challenge.id}: ${challenge.title}`);
       console.error(`   ${error.message}\n`);
       errorCount++;
-    } else {
-      console.log(`✅ Migrated challenge ${challenge.id}: ${challenge.title}`);
-      successCount++;
     }
   }
 
