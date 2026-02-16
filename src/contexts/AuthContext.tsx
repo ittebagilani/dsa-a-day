@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { authService } from '@/services/auth.service';
 
 interface User {
   id: string;
@@ -45,22 +44,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    try {
-      const newUser = await authService.createUser(email, password);
-      setUser(newUser as User);
-    } catch (error) {
-      throw error;
-    }
+    // In a real app, this would call your backend API
+    // For now, we'll simulate the process
+    const newUser = {
+      id: crypto.randomUUID(),
+      email,
+      created_at: new Date(),
+    };
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setUser(newUser as User);
+    // In a real app, you would store the token received from the backend
+    localStorage.setItem('auth-token', 'fake-jwt-token');
   };
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const result = await authService.authenticateUser(email, password);
-      localStorage.setItem('auth-token', result.token);
-      setUser(result.user as User);
-    } catch (error) {
-      throw error;
-    }
+    // In a real app, this would call your backend API
+    // For now, we'll simulate the process
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const signedInUser = {
+      id: 'user-123',
+      email,
+      created_at: new Date(),
+    };
+    
+    setUser(signedInUser as User);
+    // In a real app, you would store the token received from the backend
+    localStorage.setItem('auth-token', 'fake-jwt-token');
   };
 
   const signOut = () => {
