@@ -1,6 +1,4 @@
-// In a real app, these would call your backend API
-// For now, we'll use the data directly from the challenges file
-import { challenges } from '@/data/challenges';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface Challenge {
   id: number;
@@ -10,28 +8,64 @@ export interface Challenge {
   title: string;
   description: string;
   code: string;
-  bugLine: number | null;
+  bugLine?: number | null;
   correctAnswer: string;
   hints: string[];
   explanation: string;
+  conceptTitle?: string;
+  conceptContent?: string;
+  is_active?: boolean;
 }
+
+const safeFetchJson = async <T>(url: string): Promise<T | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return response.json() as Promise<T>;
+  } catch {
+    return null;
+  }
+};
+
+const fallbackHints = [
+  'Trace the code with a small input to see where behavior diverges.',
+  'Focus on the key invariant for this algorithm.',
+  'Compare your answer with what each line should do step by step.',
+];
+
+const normalizeHints = (hints: unknown): string[] => {
+  const cleaned = Array.isArray(hints)
+    ? hints.filter((hint): hint is string => typeof hint === 'string' && hint.trim().length > 0)
+    : [];
+
+  const result = [...cleaned];
+  let fallbackIndex = 0;
+  while (result.length < 3) {
+    result.push(fallbackHints[fallbackIndex]);
+    fallbackIndex += 1;
+  }
+
+  return result.slice(0, 3);
+};
+
+const normalizeChallenge = (challenge: Challenge): Challenge => ({
+  ...challenge,
+  hints: normalizeHints(challenge.hints),
+});
 
 export const challengeService = {
   async getTodaysChallenge(): Promise<Challenge | null> {
-    const today = new Date().toISOString().split('T')[0];
-    const challenge = challenges.find(c => c.date === today);
-    return challenge || null;
+    const challenge = await safeFetchJson<Challenge>(`${API_URL}/challenges/today`);
+    return challenge ? normalizeChallenge(challenge) : null;
   },
 
   async getChallengeById(id: number): Promise<Challenge | null> {
-    const challenge = challenges.find(c => c.id === id);
-    return challenge || null;
+    const challenge = await safeFetchJson<Challenge>(`${API_URL}/challenges/${id}`);
+    return challenge ? normalizeChallenge(challenge) : null;
   },
 
   async getPastChallenges(): Promise<Challenge[]> {
-    const today = new Date().toISOString().split('T')[0];
-    return challenges
-      .filter(c => c.date < today)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const challenges = await safeFetchJson<Challenge[]>(`${API_URL}/challenges`);
+    return (challenges ?? []).map(normalizeChallenge);
   },
 };

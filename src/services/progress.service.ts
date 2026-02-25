@@ -1,6 +1,4 @@
-// In a real app, these would call your backend API
-// For now, we'll use mock data
-import { useAuth } from '@/contexts/AuthContext';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface UserProgress {
   user_id: string;
@@ -10,72 +8,76 @@ export interface UserProgress {
   hints_used: number;
   user_answer: string | null;
   time_spent_seconds: number;
-  solved_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
+  xp_earned?: number;
+  solved_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-// Mock in-memory storage for progress
-const mockProgressStore: Record<string, UserProgress> = {};
+export interface SolvedChallengeProgress {
+  challenge_id: number;
+  attempts: number;
+  hints_used: number;
+  time_spent_seconds: number;
+  solved_at: string | null;
+  updated_at: string;
+  challenge_title: string | null;
+  challenge_date: string | null;
+  challenge_difficulty: 'easy' | 'medium' | 'hard' | null;
+  challenge_type: 'bug-fix' | 'complete-line' | 'find-problem' | null;
+}
 
 export const progressService = {
-  async getUserProgress(challengeId: number): Promise<UserProgress | null> {
-    // In a real app, you'd get the user from context
-    // For now, return null since we don't have persistent storage
-    return null;
+  getAuthHeader() {
+    const token = localStorage.getItem('auth-token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
   },
 
-  async updateProgress(
-    userId: string,
-    challengeId: number,
-    updates: Partial<Omit<UserProgress, 'user_id' | 'challenge_id' | 'created_at'>>
-  ): Promise<void> {
-    const key = `${userId}-${challengeId}`;
-    const now = new Date();
-    
-    mockProgressStore[key] = {
-      user_id: userId,
-      challenge_id: challengeId,
-      status: 'unsolved',
-      attempts: 0,
-      hints_used: 0,
-      user_answer: null,
-      time_spent_seconds: 0,
-      solved_at: null,
-      created_at: now,
-      updated_at: now,
-      ...mockProgressStore[key],
-      ...updates,
-    };
+  async getUserProgress(challengeId: number): Promise<UserProgress | null> {
+    const response = await fetch(`${API_URL}/progress/${challengeId}`, {
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+    if (!response.ok) return null;
+    return response.json();
+  },
+
+  async getSolvedChallenges(): Promise<SolvedChallengeProgress[]> {
+    const response = await fetch(`${API_URL}/progress/me/solved`, {
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+    if (!response.ok) return [];
+    return response.json();
   },
 
   async recordAttempt(
-    userId: string,
     challengeId: number,
     isCorrect: boolean,
     userAnswer: string,
-    hintsUsed: number
-  ): Promise<void> {
-    const key = `${userId}-${challengeId}`;
-    const currentProgress = mockProgressStore[key] || {
-      attempts: 0,
-      hints_used: 0,
-      solved_at: null,
-    };
-    
-    const attempts = currentProgress.attempts + 1;
-    
-    await this.updateProgress(userId, challengeId, {
-      status: isCorrect ? 'solved' : attempts >= 3 ? 'failed' : 'unsolved',
-      attempts,
-      hints_used: hintsUsed,
-      user_answer: userAnswer,
-      solved_at: isCorrect ? new Date() : currentProgress.solved_at,
+    hintsUsed: number,
+    timeTaken: number
+  ): Promise<{ xpEarned?: number; newStreak?: number }> {
+    const response = await fetch(`${API_URL}/progress/${challengeId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeader(),
+      },
+      body: JSON.stringify({
+        status: isCorrect ? 'solved' : 'unsolved',
+        user_answer: userAnswer,
+        hintsUsed,
+        time_spent_seconds: timeTaken,
+      }),
     });
-  },
-  
-  async getUserProgressByUserId(userId: string, challengeId: number): Promise<UserProgress | null> {
-    const key = `${userId}-${challengeId}`;
-    return mockProgressStore[key] || null;
+
+    if (!response.ok) {
+      throw new Error('Failed to record attempt');
+    }
+
+    return response.json();
   },
 };

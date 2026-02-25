@@ -13,6 +13,7 @@ interface PricingTier {
   highlighted?: boolean;
   buttonText: string;
   buttonVariant?: "default" | "hero" | "outline-primary";
+  priceId?: string;
 }
 
 const tiers: PricingTier[] = [
@@ -47,6 +48,7 @@ const tiers: PricingTier[] = [
     highlighted: true,
     buttonText: "Start Pro Trial",
     buttonVariant: "hero",
+    priceId: "price_1T1J7pPRELpmXfQjzJ54vkic",
   },
 ];
 
@@ -89,6 +91,7 @@ export function Pricing() {
           </ul>
           {tier.name === "Pro" ? (
             <CheckoutButton
+              priceId={tier.priceId}
               buttonText={tier.buttonText}
               variant={tier.buttonVariant as any}
               className="w-full text-base h-11"

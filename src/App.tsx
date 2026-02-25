@@ -9,6 +9,11 @@ import Index from "./pages/Index";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import PricingPage from "./pages/PricingPage";
 import PastChallengesPage from "./pages/PastChallengesPage";
+import ChallengePage from "./pages/ChallengePage";
+import LegacyChallengeRedirect from "./pages/LegacyChallengeRedirect";
+import ManageAccountPage from "./pages/ManageAccountPage";
+import AuthCallback from "./pages/AuthCallback";
+import SuccessPage from "./pages/SuccessPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,9 +28,14 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/challenges/:id" element={<LegacyChallengeRedirect />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/past-challenges" element={<PastChallengesPage />} />
+              <Route path="/account" element={<ManageAccountPage />} />
+              <Route path="/auth-callback" element={<AuthCallback />} />
+              <Route path="/success" element={<SuccessPage />} />
+              <Route path="/:slug" element={<ChallengePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

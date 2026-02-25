@@ -1,28 +1,81 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import cron from 'node-cron';
+import fs from 'fs';
+import path from 'path';
 import { connectToDatabase } from './lib/mongodb';
+import { backfillMissingChallenges, generateDailyChallenge } from './services/ai';
+import { getChallengeTimezone, getTodayChallengeDateString } from './lib/date';
+import { optionalCsvEnv, requireEnv } from './lib/env';
 import challengeRoutes from './routes/challenges';
 import authRoutes from './routes/auth';
 import progressRoutes from './routes/progress';
-
-dotenv.config();
+import subscriptionRoutes from './routes/subscriptions';
+import stripeRoutes from './routes/stripe';
+import webhookRoutes from './routes/webhooks';
+import leaderboardRoutes from './routes/leaderboard';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const frontendUrl = requireEnv('FRONTEND_URL');
+const allowedOrigins = new Set([frontendUrl, ...optionalCsvEnv('CORS_ORIGINS')]);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
+
+// Stripe Webhooks need the raw body for signature verification
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRoutes);
+
+app.use(express.json({ limit: '1mb' }));
 
 // Routes
 app.use('/api/challenges', challengeRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/stripe', stripeRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+
+// Serve frontend build from the same service (single URL deployment).
+const frontendDistPath = path.resolve(__dirname, '../../dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Daily challenge generation at midnight
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily challenge generation cron job...');
+  try {
+    const challenge = await generateDailyChallenge(getTodayChallengeDateString());
+    if (challenge) {
+      console.log(`Successfully generated daily challenge: ${challenge.title}`);
+    } else {
+      console.log('Failed to generate daily challenge or one already exists.');
+    }
+  } catch (error) {
+    console.error('Error in daily challenge generation cron job:', error);
+  }
+}, {
+  timezone: getChallengeTimezone(),
 });
 
 // Connect to database and start server
@@ -30,6 +83,9 @@ async function startServer() {
   try {
     await connectToDatabase();
     console.log('Connected to MongoDB');
+
+    await backfillMissingChallenges();
+    console.log('Challenge backfill check completed');
     
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

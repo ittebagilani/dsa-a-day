@@ -13,6 +13,8 @@ export interface Challenge {
   correctAnswer: string; // The fixed line or answer
   hints: string[];
   explanation: string;
+  conceptTitle?: string;
+  conceptContent?: string;
 }
 
 // Helper to get date string for N days ago
@@ -49,14 +51,16 @@ export const challenges: Challenge[] = [
         fast = fast  # Bug here
 
     return slow`,
-    bugLine: 15,
+    bugLine: 16,
     correctAnswer: "fast = nums[fast]",
     hints: [
       "Look at the second phase of Floyd's algorithm",
       "Both pointers should move at the same speed in phase 2",
       "The fast pointer isn't being updated correctly"
     ],
-    explanation: "In Floyd's cycle detection, the second phase requires both pointers to move one step at a time. The bug is on line 15 where 'fast = fast' doesn't advance the pointer. It should be 'fast = nums[fast]' to properly traverse the array."
+    explanation: "In Floyd's cycle detection, the second phase requires both pointers to move one step at a time. The bug is on line 16 where 'fast = fast' doesn't advance the pointer. It should be 'fast = nums[fast]' to properly traverse the array.",
+    conceptTitle: "Floyd's Cycle-Finding Algorithm",
+    conceptContent: "Also known as the 'Tortoise and the Hare' algorithm, it uses two pointers moving at different speeds to detect cycles in a sequence or linked list. After detecting a cycle, it can also find the starting point of the cycle."
   },
   // Day 1
   {
@@ -88,7 +92,9 @@ export const challenges: Challenge[] = [
       "What is the valid index range for an array?",
       "len(arr) is out of bounds"
     ],
-    explanation: "The right pointer should start at len(arr) - 1, not len(arr). Starting at len(arr) could cause an out-of-bounds access when checking arr[mid]."
+    explanation: "The right pointer should start at len(arr) - 1, not len(arr). Starting at len(arr) could cause an out-of-bounds access when checking arr[mid].",
+    conceptTitle: "Binary Search",
+    conceptContent: "Binary search is an efficient algorithm for finding an item from a sorted list of items. It works by repeatedly dividing in half the portion of the list that could contain the item, until you've narrowed down the possible locations to just one."
   },
   // Day 2
   {
@@ -120,7 +126,9 @@ export const challenges: Challenge[] = [
       "We need to move to the next element",
       "Increment the right array pointer"
     ],
-    explanation: "After appending right[j] to the result, we need to increment j to move to the next element in the right array, just like we increment i when appending from the left array."
+    explanation: "After appending right[j] to the result, we need to increment j to move to the next element in the right array, just like we increment i when appending from the left array.",
+    conceptTitle: "Merge Sort",
+    conceptContent: "Merge sort is a divide-and-conquer algorithm that works by recursively breaking down a problem into two or more sub-problems of the same or related type, until these become simple enough to be solved directly."
   },
   // Day 3
   {
@@ -200,7 +208,9 @@ export const challenges: Challenge[] = [
       "We saved the next node for a reason",
       "Current should move to the saved next node"
     ],
-    explanation: "The bug is on line 9 where current = prev causes an infinite loop. It should be current = next to advance to the next node."
+    explanation: "The bug is on line 9 where current = prev causes an infinite loop. It should be current = next to advance to the next node.",
+    conceptTitle: "Linked List Reversal",
+    conceptContent: "Reversing a singly linked list involves changing the 'next' pointer of each node to point to its predecessor. This is typically done iteratively using three pointers (prev, current, next) or recursively."
   },
   // Day 6
   {
@@ -271,7 +281,9 @@ export const challenges: Challenge[] = [
       "How many nodes should be processed per level?",
       "The range should be range(size), not range(size + 1)"
     ],
-    explanation: "Using range(size + 1) processes one extra node per level, mixing nodes from different levels. It should be range(size) to process exactly 'size' nodes per level."
+    explanation: "Using range(size + 1) processes one extra node per level, mixing nodes from different levels. It should be range(size) to process exactly 'size' nodes per level.",
+    conceptTitle: "Breadth-First Search (BFS)",
+    conceptContent: "Breadth-first search is an algorithm for traversing or searching tree or graph data structures. It starts at the tree root and explores all nodes at the present depth before moving on to the nodes at the next depth level."
   },
   // Day 8
   {

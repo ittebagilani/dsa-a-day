@@ -1,21 +1,29 @@
 import { Router } from 'express';
 import { getCollection } from '../lib/mongodb';
+import { generateDailyChallenge } from '../services/ai';
+import { getTodayChallengeDateString } from '../lib/date';
 
 const router = Router();
 
 // Get today's challenge
 router.get('/today', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayChallengeDateString();
     const collection = await getCollection('challenges');
     
-    const challenge = await collection.findOne({
+    let challenge = await collection.findOne({
       date: today,
       is_active: true
     });
     
     if (!challenge) {
-      return res.status(404).json({ error: 'No challenge found for today' });
+      // If no challenge found for today, generate one with AI
+      console.log('No challenge found for today, generating with AI...');
+      challenge = await generateDailyChallenge(today);
+    }
+    
+    if (!challenge) {
+      return res.status(404).json({ error: 'No challenge found for today and generation failed' });
     }
     
     res.json(challenge);
@@ -50,7 +58,7 @@ router.get('/:id', async (req, res) => {
 // Get past challenges
 router.get('/', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayChallengeDateString();
     const collection = await getCollection('challenges');
     
     const challenges = await collection

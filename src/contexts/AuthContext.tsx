@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 interface User {
   id: string;
   email: string;
@@ -11,6 +13,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithOAuth: (provider: 'google') => void;
   signOut: () => void;
 }
 
@@ -21,12 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing token in localStorage
     const token = localStorage.getItem('auth-token');
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        // Check if token is expired
         if (payload.exp * 1000 > Date.now()) {
           setUser({
             id: payload.userId,
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           localStorage.removeItem('auth-token');
         }
-      } catch (error) {
+      } catch {
         localStorage.removeItem('auth-token');
       }
     }
@@ -44,38 +45,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    // In a real app, this would call your backend API
-    // For now, we'll simulate the process
-    const newUser = {
-      id: crypto.randomUUID(),
-      email,
-      created_at: new Date(),
-    };
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setUser(newUser as User);
-    // In a real app, you would store the token received from the backend
-    localStorage.setItem('auth-token', 'fake-jwt-token');
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to sign up');
+    }
+
+    const { user: userData, token } = await response.json();
+    setUser({
+      id: userData.id,
+      email: userData.email,
+      created_at: new Date(userData.created_at),
+    });
+    localStorage.setItem('auth-token', token);
   };
 
   const signIn = async (email: string, password: string) => {
-    // In a real app, this would call your backend API
-    // For now, we'll simulate the process
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const signedInUser = {
-      id: 'user-123',
-      email,
-      created_at: new Date(),
-    };
-    
-    setUser(signedInUser as User);
-    // In a real app, you would store the token received from the backend
-    localStorage.setItem('auth-token', 'fake-jwt-token');
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to sign in');
+    }
+
+    const { user: userData, token } = await response.json();
+    setUser({
+      id: userData.id,
+      email: userData.email,
+      created_at: new Date(userData.created_at),
+    });
+    localStorage.setItem('auth-token', token);
+  };
+
+  const signInWithOAuth = (provider: 'google') => {
+    window.location.href = `${API_URL}/auth/${provider}`;
   };
 
   const signOut = () => {
@@ -83,15 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const value = {
-    user,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{ user, loading, signUp, signIn, signInWithOAuth, signOut }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

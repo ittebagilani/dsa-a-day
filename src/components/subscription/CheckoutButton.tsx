@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 interface CheckoutButtonProps {
   priceId?: string;
   buttonText?: string;
@@ -11,7 +13,7 @@ interface CheckoutButtonProps {
 }
 
 export function CheckoutButton({
-  priceId = 'price_pro_monthly',
+  priceId = 'price_1T1J7pPRELpmXfQjzJ54vkic',
   buttonText = 'Subscribe Now',
   variant = 'hero',
   className,
@@ -33,34 +35,27 @@ export function CheckoutButton({
     setLoading(true);
 
     try {
-      // TODO: Implement Stripe checkout
-      // For now, show a message that this feature is coming soon
-      toast({
-        title: 'Coming Soon!',
-        description: 'Stripe checkout integration is being set up. You can test auth and database features for now.',
-      });
-
-      // Future implementation:
-      // 1. Call Supabase Edge Function to create checkout session
-      // 2. Redirect to Stripe Checkout
-      // Example code:
-      /*
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: {
-          priceId,
-          userId: user.id,
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`${API_URL}/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        body: JSON.stringify({ priceId }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      const stripe = await stripePromise;
-      if (!stripe) throw new Error('Stripe not loaded');
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
 
-      await stripe.redirectToCheckout({
-        sessionId: data.sessionId,
-      });
-      */
+      if (!data.url) {
+        throw new Error('No checkout URL received');
+      }
+
+      window.location.href = data.url;
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast({
@@ -74,12 +69,7 @@ export function CheckoutButton({
   };
 
   return (
-    <Button
-      variant={variant}
-      onClick={handleCheckout}
-      disabled={loading}
-      className={className}
-    >
+    <Button variant={variant} onClick={handleCheckout} disabled={loading} className={className}>
       {loading ? 'Processing...' : buttonText}
     </Button>
   );

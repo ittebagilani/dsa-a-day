@@ -4,12 +4,23 @@ import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { AuthModal } from "@/components/auth/AuthModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { CircleUserRound } from "lucide-react";
 
 export function Header() {
   const { user, signOut, loading: authLoading } = useAuth();
   const { isPremium, loading: subLoading } = useSubscription();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const navigate = useNavigate();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-sm">
@@ -52,12 +63,33 @@ export function Header() {
                   PRO
                 </span>
               )}
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user.email}
-              </span>
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                Sign Out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" aria-label="Open profile menu">
+                    <CircleUserRound className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/account')}>
+                    Manage Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => navigate('/pricing')}>
+                    Upgrade
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      signOut();
+                      navigate('/');
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <>

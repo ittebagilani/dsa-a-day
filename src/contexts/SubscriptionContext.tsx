@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { getCollection } from '@/lib/mongodb';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface Subscription {
   _id: string;
@@ -34,19 +35,30 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      const collection = await getCollection('subscriptions');
-      const data = await collection.findOne({ user_id: user.id });
-      
-      if (data) {
-        setSubscription(data as Subscription);
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch(`${API_URL}/subscriptions/${user.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const contentType = response.headers.get('content-type') || '';
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setSubscription(null);
+        } else {
+          throw new Error('Failed to fetch subscription');
+        }
       } else {
-        setSubscription(null);
+        if (!contentType.includes('application/json')) {
+          throw new Error(`Unexpected response type: ${contentType || 'unknown'}`);
+        }
+        const data = await response.json();
+        setSubscription(data as Subscription);
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
       setSubscription(null);
     }
-    
+
     setLoading(false);
   };
 
@@ -54,15 +66,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     fetchSubscription();
   }, [user]);
 
-  // For simplicity, we'll poll for changes periodically
-  // In a real app, you might use WebSocket or Server-Sent Events
   useEffect(() => {
     if (!user) return;
-    
+
     const interval = setInterval(() => {
       fetchSubscription();
-    }, 30000); // Poll every 30 seconds
-    
+    }, 30000);
+
     return () => clearInterval(interval);
   }, [user]);
 

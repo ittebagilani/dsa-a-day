@@ -1,16 +1,15 @@
-import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { PuzzleSolver } from "@/components/PuzzleSolver";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Button } from "@/components/ui/button";
-import { Challenge } from "@/data/challenges";
 import { usePastChallenges } from "@/hooks/use-challenges";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { formatChallengeDate } from "@/lib/challenge-date";
+import { getChallengeSlug } from "@/lib/challenge-slug";
 import { Link } from "react-router-dom";
+import { Challenge } from "@/services/challenge.service";
 
 const PastChallengesPage = () => {
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const { data: pastChallenges = [], isLoading } = usePastChallenges();
   const { isPremium, loading: subLoading } = useSubscription();
 
@@ -54,27 +53,6 @@ const PastChallengesPage = () => {
     );
   }
 
-  if (selectedChallenge) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1 pt-24 pb-16">
-          <div className="container">
-            <Button 
-              variant="ghost" 
-              className="mb-6"
-              onClick={() => setSelectedChallenge(null)}
-            >
-              ← Back to Past Challenges
-            </Button>
-            <PuzzleSolver challenge={selectedChallenge} isPremium={true} />
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -100,16 +78,16 @@ const PastChallengesPage = () => {
                 </p>
               ) : (
                 pastChallenges.map((challenge) => (
-                  <button
+                  <Link
                     key={challenge.id}
-                    onClick={() => setSelectedChallenge(challenge)}
-                    className="w-full text-left p-4 rounded-lg border bg-card hover:bg-secondary/50 transition-colors"
+                    to={`/${getChallengeSlug(challenge)}`}
+                    className="block w-full text-left p-4 rounded-lg border bg-card hover:bg-secondary/50 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
                           <span className="text-sm text-muted-foreground">
-                            {new Date(challenge.date).toLocaleDateString('en-US', {
+                            {formatChallengeDate(challenge.date, {
                               month: 'short',
                               day: 'numeric'
                             })}
@@ -123,7 +101,7 @@ const PastChallengesPage = () => {
                       </div>
                       <span className="text-muted-foreground">→</span>
                     </div>
-                  </button>
+                  </Link>
                 ))
               )}
             </div>

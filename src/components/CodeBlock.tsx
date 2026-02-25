@@ -2,14 +2,15 @@ import { cn } from "@/lib/utils";
 
 interface CodeBlockProps {
   code: string;
-  language?: string;
-  highlightLines?: number[];
+  language?: CodeLanguage;
   showLineNumbers?: boolean;
   className?: string;
 }
 
+export type CodeLanguage = "python" | "javascript";
+
 // Escape HTML to prevent XSS
-const escapeHtml = (text: string): string => {
+export const escapeHtml = (text: string): string => {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -18,9 +19,13 @@ const escapeHtml = (text: string): string => {
     .replace(/'/g, '&#039;');
 };
 
-// Highlight syntax using a token-based approach to avoid double-replacement
-const highlightPythonLine = (line: string): string => {
+const createHighlightLineFn = (language: CodeLanguage) => (line: string): string => {
   const tokens: Array<{ type: string; value: string; start: number; end: number }> = [];
+  const keywordRegex =
+    language === "python"
+      ? /\b(def|class|if|elif|else|for|while|return|import|from|as|try|except|finally|with|lambda|True|False|None|and|or|not|in|is|pass|break|continue|yield|assert|raise|global|nonlocal)\b/g
+      : /\b(function|const|let|var|if|else|for|while|return|import|from|export|class|new|try|catch|finally|switch|case|default|break|continue|true|false|null|undefined|await|async|throw)\b/g;
+  const commentRegex = language === "python" ? /(#.*$)/g : /(\/\/.*$)/g;
 
   // Find all strings first (they take precedence)
   const stringRegex = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
@@ -30,7 +35,6 @@ const highlightPythonLine = (line: string): string => {
   }
 
   // Find all comments
-  const commentRegex = /(#.*$)/g;
   while ((match = commentRegex.exec(line)) !== null) {
     // Only add if not inside a string
     const isInString = tokens.some(t => t.type === 'string' && match!.index >= t.start && match!.index < t.end);
@@ -49,7 +53,6 @@ const highlightPythonLine = (line: string): string => {
   }
 
   // Find all keywords
-  const keywordRegex = /\b(def|class|if|elif|else|for|while|return|import|from|as|try|except|finally|with|lambda|True|False|None|and|or|not|in|is|pass|break|continue|yield|assert|raise|global|nonlocal)\b/g;
   while ((match = keywordRegex.exec(line)) !== null) {
     const isInToken = tokens.some(t => match!.index >= t.start && match!.index < t.end);
     if (!isInToken) {
@@ -94,14 +97,19 @@ const highlightPythonLine = (line: string): string => {
   return result || '&nbsp;';
 };
 
+export const highlightCodeToHtml = (code: string, language: CodeLanguage = "javascript"): string[] => {
+  const highlightLine = createHighlightLineFn(language);
+  return code.split('\n').map((line) => highlightLine(line));
+};
+
 export function CodeBlock({ 
   code, 
   language = "javascript",
-  highlightLines = [],
   showLineNumbers = true,
   className 
 }: CodeBlockProps) {
   const lines = code.split('\n');
+  const highlightedLines = highlightCodeToHtml(code, language);
   
   return (
     <div className={cn("code-block font-mono", className)}>
@@ -114,17 +122,11 @@ export function CodeBlock({
       )}
       <pre className="m-0 p-0">
         <code>
-          {lines.map((line, index) => {
-            const isHighlighted = highlightLines.includes(index + 1);
-            const highlighted = language === "python" ? highlightPythonLine(line) : escapeHtml(line);
-
+          {lines.map((_, index) => {
             return (
               <div
                 key={index}
-                className={cn(
-                  "flex leading-relaxed",
-                  isHighlighted && "bg-warning/10 -mx-4 px-4 border-l-2 border-warning"
-                )}
+                className="flex leading-relaxed"
               >
                 {showLineNumbers && (
                   <span className="select-none pr-4 text-muted-foreground/50 w-8 text-right">
@@ -133,7 +135,7 @@ export function CodeBlock({
                 )}
                 <span
                   className="flex-1"
-                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                  dangerouslySetInnerHTML={{ __html: highlightedLines[index] }}
                 />
               </div>
             );
