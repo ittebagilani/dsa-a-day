@@ -1,4 +1,22 @@
-const CHALLENGE_TIMEZONE = process.env.CHALLENGE_TIMEZONE || 'UTC';
+const DEFAULT_CHALLENGE_TIMEZONE = 'America/Los_Angeles';
+
+function resolveChallengeTimezone(): string {
+  const candidate =
+    process.env.CHALLENGE_TIMEZONE || process.env.TZ || DEFAULT_CHALLENGE_TIMEZONE;
+
+  try {
+    // Validate timezone early so date calculations stay deterministic.
+    new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
+    return candidate;
+  } catch {
+    console.warn(
+      `Invalid timezone "${candidate}" for CHALLENGE_TIMEZONE. Falling back to ${DEFAULT_CHALLENGE_TIMEZONE}.`,
+    );
+    return DEFAULT_CHALLENGE_TIMEZONE;
+  }
+}
+
+const CHALLENGE_TIMEZONE = resolveChallengeTimezone();
 
 export function getChallengeTimezone(): string {
   return CHALLENGE_TIMEZONE;

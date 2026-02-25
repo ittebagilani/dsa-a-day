@@ -11,6 +11,6 @@ export function optionalCsvEnv(name: string): string[] {
   if (!value) return [];
   return value
     .split(',')
-    .map((entry) => entry.trim())
+    .map((entry) => entry.trim().replace(/^['"]|['"]$/g, ''))
     .filter(Boolean);
 }

@@ -53,6 +53,128 @@ const normalizeHints = (hints: unknown): string[] => {
   return result.slice(0, 3);
 };
 
+const fallbackTemplates: Array<
+  Omit<Challenge, 'id' | 'date' | 'is_active'>
+> = [
+  {
+    type: 'bug-fix',
+    difficulty: 'easy',
+    title: 'Merge Two Sorted Arrays',
+    description:
+      'Fix the merge function so it correctly merges two sorted arrays into one sorted array.',
+    code: `function merge(a, b) {
+  const result = [];
+  let i = 0, j = 0;
+
+  while (i < a.length && j < b.length) {
+    if (a[i] < b[j]) {
+      result.push(a[i]);
+      i++;
+    } else {
+      result.push(a[i]);
+      j++;
+    }
+  }
+
+  return result.concat(a.slice(i), b.slice(j));
+}`,
+    bugLine: 11,
+    correctAnswer: 'result.push(b[j]);',
+    hints: [
+      'Inspect the branch where a[i] is not smaller than b[j].',
+      'In each branch, push from the same pointer you increment.',
+      'One side of the merge is currently duplicated.',
+    ],
+    explanation:
+      'When b[j] is smaller (or equal), the code should push b[j] and increment j. Pushing a[i] there duplicates values from a and skips values from b.',
+    conceptTitle: 'Two Pointers',
+    conceptContent:
+      'Two pointers are commonly used to merge sorted sequences in linear time. Maintain the invariant that result is always sorted and built from consumed prefixes of both arrays.',
+  },
+  {
+    type: 'complete-line',
+    difficulty: 'medium',
+    title: 'Binary Search Midpoint',
+    description:
+      'Complete the missing line to perform binary search correctly.',
+    code: `function binarySearch(nums, target) {
+  let left = 0, right = nums.length - 1;
+
+  while (left <= right) {
+    // missing line
+    if (nums[mid] === target) return mid;
+    if (nums[mid] < target) left = mid + 1;
+    else right = mid - 1;
+  }
+  return -1;
+}`,
+    correctAnswer: 'const mid = Math.floor((left + right) / 2);',
+    hints: [
+      'The midpoint must be recomputed each loop iteration.',
+      'Use left and right bounds to derive mid.',
+      'The result should be an integer index.',
+    ],
+    explanation:
+      'Binary search repeatedly splits the search space in half. The midpoint must be recomputed from current bounds on each iteration.',
+    conceptTitle: 'Binary Search',
+    conceptContent:
+      'Binary search works on sorted arrays by comparing target to the midpoint and shrinking the search interval. It runs in O(log n) time.',
+  },
+  {
+    type: 'find-problem',
+    difficulty: 'hard',
+    title: 'Longest Substring Without Repeating Characters',
+    description:
+      'Find the logic issue in this sliding-window implementation and provide the corrected line.',
+    code: `function lengthOfLongestSubstring(s) {
+  let left = 0;
+  let best = 0;
+  const seen = new Map();
+
+  for (let right = 0; right < s.length; right++) {
+    const ch = s[right];
+    if (seen.has(ch)) {
+      left = seen.get(ch) + 1;
+    }
+    seen.set(ch, right);
+    best = Math.max(best, right - left + 1);
+  }
+
+  return best;
+}`,
+    correctAnswer: 'left = Math.max(left, seen.get(ch) + 1);',
+    hints: [
+      'left should never move backward.',
+      'A duplicate outside the active window should not shrink correctness.',
+      'Guard left update with current left value.',
+    ],
+    explanation:
+      'If a character was seen before left, blindly setting left causes it to move backward and break the window invariant. Use Math.max to keep left monotonic.',
+    conceptTitle: 'Sliding Window',
+    conceptContent:
+      'Sliding window tracks a contiguous region with maintained constraints. For uniqueness, store last seen indices and move the left boundary carefully.',
+  },
+];
+
+const dateToSeed = (date: string): number => {
+  let seed = 0;
+  for (let i = 0; i < date.length; i += 1) {
+    seed = (seed * 31 + date.charCodeAt(i)) >>> 0;
+  }
+  return seed;
+};
+
+const buildFallbackChallenge = (challengeDate: string): Omit<Challenge, 'id'> => {
+  const index = dateToSeed(challengeDate) % fallbackTemplates.length;
+  const template = fallbackTemplates[index];
+  return {
+    ...template,
+    hints: normalizeHints(template.hints),
+    date: challengeDate,
+    is_active: true,
+  };
+};
+
 export async function generateDailyChallenge(targetDate?: string): Promise<Challenge | null> {
   const collection = await getCollection('challenges');
   const challengeDate = targetDate || getTodayChallengeDateString();
@@ -64,6 +186,24 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
 
   if (existingChallenge) {
     return existingChallenge as Challenge;
+  }
+
+  const createAndStoreFallbackChallenge = async (): Promise<Challenge | null> => {
+    const lastChallenge = await collection.findOne({}, { sort: { id: -1 } });
+    const nextId = lastChallenge ? lastChallenge.id + 1 : 1;
+    const challenge: Challenge = {
+      ...buildFallbackChallenge(challengeDate),
+      id: nextId,
+    };
+    await collection.insertOne(challenge);
+    return challenge;
+  };
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn(
+      `OPENAI_API_KEY is missing. Using fallback challenge template for ${challengeDate}.`,
+    );
+    return createAndStoreFallbackChallenge();
   }
 
   const prompt = `Generate a Data Structures and Algorithms (DSA) coding challenge for a "Daily Code Quest" app.
@@ -135,7 +275,15 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
     return challenge;
   } catch (error) {
     console.error('Error generating AI challenge:', error);
-    return null;
+    try {
+      console.warn(
+        `Falling back to local challenge template for ${challengeDate} after AI failure.`,
+      );
+      return await createAndStoreFallbackChallenge();
+    } catch (fallbackError) {
+      console.error('Error generating fallback challenge:', fallbackError);
+      return null;
+    }
   }
 }
 

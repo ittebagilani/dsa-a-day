@@ -13,7 +13,7 @@ interface CheckoutButtonProps {
 }
 
 export function CheckoutButton({
-  priceId = 'price_1T1J7pPRELpmXfQjzJ54vkic',
+  priceId,
   buttonText = 'Subscribe Now',
   variant = 'hero',
   className,
@@ -35,6 +35,10 @@ export function CheckoutButton({
     setLoading(true);
 
     try {
+      if (!priceId) {
+        throw new Error('Missing Stripe price configuration');
+      }
+
       const token = localStorage.getItem('auth-token');
       const response = await fetch(`${API_URL}/stripe/create-checkout-session`, {
         method: 'POST',

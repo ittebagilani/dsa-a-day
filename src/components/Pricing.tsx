@@ -16,6 +16,8 @@ interface PricingTier {
   priceId?: string;
 }
 
+const proPriceId = import.meta.env.VITE_STRIPE_PRICE_ID_PRO as string | undefined;
+
 const tiers: PricingTier[] = [
   {
     name: "Free",
@@ -48,7 +50,7 @@ const tiers: PricingTier[] = [
     highlighted: true,
     buttonText: "Start Pro Trial",
     buttonVariant: "hero",
-    priceId: "price_1T1J7pPRELpmXfQjzJ54vkic",
+    priceId: proPriceId,
   },
 ];
 
