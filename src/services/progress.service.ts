@@ -55,7 +55,7 @@ export const progressService = {
 
   async recordAttempt(
     challengeId: number,
-    isCorrect: boolean,
+    status: 'unsolved' | 'solved' | 'failed',
     userAnswer: string,
     hintsUsed: number,
     timeTaken: number
@@ -67,9 +67,9 @@ export const progressService = {
         ...this.getAuthHeader(),
       },
       body: JSON.stringify({
-        status: isCorrect ? 'solved' : 'unsolved',
+        status,
         user_answer: userAnswer,
-        hintsUsed,
+        hints_used: hintsUsed,
         time_spent_seconds: timeTaken,
       }),
     });

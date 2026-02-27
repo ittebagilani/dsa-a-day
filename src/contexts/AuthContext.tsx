@@ -55,14 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       throw new Error(data.error || 'Failed to sign up');
     }
-
-    const { user: userData, token } = await response.json();
-    setUser({
-      id: userData.id,
-      email: userData.email,
-      created_at: new Date(userData.created_at),
-    });
-    localStorage.setItem('auth-token', token);
   };
 
   const signIn = async (email: string, password: string) => {

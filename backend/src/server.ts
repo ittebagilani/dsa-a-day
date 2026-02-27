@@ -23,6 +23,26 @@ const PORT = process.env.PORT || 3001;
 const frontendUrl = requireEnv('FRONTEND_URL');
 const allowedOrigins = new Set([frontendUrl, ...optionalCsvEnv('CORS_ORIGINS')]);
 
+function resolveFrontendDistPath(): string | null {
+  const envPath = process.env.FRONTEND_DIST_PATH;
+  const candidates = [
+    envPath ? path.resolve(envPath) : null,
+    path.resolve(__dirname, '../../dist'),
+    path.resolve(__dirname, '../dist'),
+    path.resolve(process.cwd(), 'dist'),
+    path.resolve(process.cwd(), '../dist'),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    const indexPath = path.join(candidate, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 // Middleware
 app.use(cors({
   origin: (origin, callback) => {
@@ -48,11 +68,17 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
 // Serve frontend build from the same service (single URL deployment).
-const frontendDistPath = path.resolve(__dirname, '../../dist');
-if (fs.existsSync(frontendDistPath)) {
+const frontendDistPath = resolveFrontendDistPath();
+if (frontendDistPath) {
+  console.log(`Serving frontend assets from: ${frontendDistPath}`);
   app.use(express.static(frontendDistPath));
   app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  console.warn('Frontend dist not found. Set FRONTEND_DIST_PATH or verify frontend build step.');
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.status(503).send('Frontend build not found on server.');
   });
 }
 

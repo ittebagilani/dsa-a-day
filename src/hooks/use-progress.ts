@@ -17,21 +17,22 @@ export function useRecordAttempt() {
   return useMutation({
     mutationFn: ({
       challengeId,
-      isCorrect,
+      status,
       userAnswer,
       hintsUsed,
       timeTaken,
     }: {
       challengeId: number;
-      isCorrect: boolean;
+      status: 'unsolved' | 'solved' | 'failed';
       userAnswer: string;
       hintsUsed: number;
       timeTaken: number;
     }) =>
-      progressService.recordAttempt(challengeId, isCorrect, userAnswer, hintsUsed, timeTaken),
+      progressService.recordAttempt(challengeId, status, userAnswer, hintsUsed, timeTaken),
     onSuccess: (_, variables) => {
       // Invalidate progress query to refetch
       queryClient.invalidateQueries({ queryKey: ['progress', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['progress', 'solved'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
     },

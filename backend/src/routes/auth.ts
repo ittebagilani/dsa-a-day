@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'crypto';
 import { getCollection } from '../lib/mongodb';
 import { requireEnv } from '../lib/env';
 import { rateLimit } from '../middleware/rate-limit';
+import { sendVerificationEmail } from '../lib/email';
 
 const router = Router();
 const JWT_SECRET = requireEnv('JWT_SECRET');
@@ -27,20 +29,65 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
   }, {});
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function hashVerificationToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+async function sendVerificationForUser(email: string, userId: string, users: any): Promise<void> {
+  const verificationToken = randomBytes(32).toString('hex');
+  const verificationTokenHash = hashVerificationToken(verificationToken);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await users.updateOne(
+    { id: userId },
+    {
+      $set: {
+        email_verification_token_hash: verificationTokenHash,
+        email_verification_expires_at: expiresAt,
+      },
+    }
+  );
+
+  const verificationUrl = `${BACKEND_URL}/api/auth/verify-email?token=${encodeURIComponent(verificationToken)}`;
+  await sendVerificationEmail(email, verificationUrl);
+}
+
 // Register
 router.post('/register', authRateLimit, async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
     
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
     
     const users = await getCollection('users');
     
     // Check if user already exists
-    const existingUser = await users.findOne({ email });
+    const existingUser = await users.findOne({ email: normalizedEmail });
     if (existingUser) {
+      if (existingUser.password_hash && existingUser.email_verified !== true) {
+        try {
+          await sendVerificationForUser(normalizedEmail, existingUser.id, users);
+          return res.status(200).json({
+            message: 'Verification email re-sent. Please check your inbox.',
+          });
+        } catch (error) {
+          console.error('Resend verification on existing user failed:', error);
+          return res.status(500).json({ error: 'Failed to send verification email' });
+        }
+      }
       return res.status(400).json({ error: 'User already exists' });
     }
     
@@ -51,26 +98,28 @@ router.post('/register', authRateLimit, async (req, res) => {
     // Create user
     const user = {
       id: crypto.randomUUID(),
-      email,
+      email: normalizedEmail,
       password_hash,
+      email_verified: false,
+      email_verification_token_hash: null,
+      email_verification_expires_at: null,
       xp: 0,
       streak: 0,
       created_at: new Date(),
     };
     
     await users.insertOne(user);
-    
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    
-    const { password_hash: _, ...userWithoutPassword } = user;
+
+    try {
+      await sendVerificationForUser(user.email, user.id, users);
+    } catch (error) {
+      await users.deleteOne({ id: user.id });
+      console.error('Failed to send verification email:', error);
+      return res.status(500).json({ error: 'Failed to send verification email' });
+    }
+
     res.status(201).json({
-      user: userWithoutPassword,
-      token,
+      message: 'Account created. Please verify your email before signing in.',
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -82,13 +131,14 @@ router.post('/register', authRateLimit, async (req, res) => {
 router.post('/login', authRateLimit, async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
     
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
     const users = await getCollection('users');
-    const user = await users.findOne({ email });
+    const user = await users.findOne({ email: normalizedEmail });
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -101,6 +151,10 @@ router.post('/login', authRateLimit, async (req, res) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.email_verified === false) {
+      return res.status(403).json({ error: 'Please verify your email before signing in' });
     }
     
     // Generate JWT token
@@ -118,6 +172,68 @@ router.post('/login', authRateLimit, async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/resend-verification', authRateLimit, async (req, res) => {
+  try {
+    const { email } = req.body as { email?: string };
+    const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : '';
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const users = await getCollection('users');
+    const user = await users.findOne({ email: normalizedEmail });
+
+    if (!user || !user.password_hash || user.email_verified === true) {
+      return res.json({ message: 'If the account exists, a verification email has been sent.' });
+    }
+
+    await sendVerificationForUser(normalizedEmail, user.id, users);
+    return res.json({ message: 'Verification email sent.' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    return res.status(500).json({ error: 'Failed to send verification email' });
+  }
+});
+
+router.get('/verify-email', async (req, res) => {
+  try {
+    const token = req.query.token as string | undefined;
+    if (!token) {
+      return res.redirect(`${FRONTEND_URL}/verify-email?status=error&reason=missing_token`);
+    }
+
+    const tokenHash = hashVerificationToken(token);
+    const users = await getCollection('users');
+
+    const user = await users.findOne({
+      email_verification_token_hash: tokenHash,
+      email_verification_expires_at: { $gt: new Date() },
+      email_verified: false,
+    });
+
+    if (!user) {
+      return res.redirect(`${FRONTEND_URL}/verify-email?status=error&reason=invalid_or_expired`);
+    }
+
+    await users.updateOne(
+      { id: user.id },
+      {
+        $set: { email_verified: true },
+        $unset: {
+          email_verification_token_hash: '',
+          email_verification_expires_at: '',
+        },
+      }
+    );
+
+    return res.redirect(`${FRONTEND_URL}/verify-email?status=success`);
+  } catch (error) {
+    console.error('Verify email error:', error);
+    return res.redirect(`${FRONTEND_URL}/verify-email?status=error&reason=server_error`);
   }
 });
 

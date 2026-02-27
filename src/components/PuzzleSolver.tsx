@@ -175,11 +175,14 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
 
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
+    const submissionStatus: SolveStatus = isCorrect
+      ? "solved"
+      : (newAttempts >= 3 ? "failed" : "unsolved");
 
-    if (isCorrect) {
+    if (submissionStatus === "solved") {
       setStatus("solved");
       onComplete?.(true);
-    } else if (newAttempts >= 3) {
+    } else if (submissionStatus === "failed") {
       setStatus("failed");
       onComplete?.(false);
     }
@@ -189,7 +192,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       try {
         const result = await recordAttempt.mutateAsync({
           challengeId: challenge.id,
-          isCorrect,
+          status: submissionStatus,
           userAnswer,
           hintsUsed,
           timeTaken: duration,

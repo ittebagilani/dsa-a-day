@@ -51,8 +51,8 @@ router.get('/me/solved', authenticateToken, async (req: any, res) => {
         $project: {
           _id: 0,
           challenge_id: 1,
-          attempts: 1,
-          hints_used: 1,
+          attempts: { $ifNull: ['$attempts', 0] },
+          hints_used: { $ifNull: ['$hints_used', { $ifNull: ['$hintsUsed', 0] }] },
           time_spent_seconds: 1,
           solved_at: 1,
           updated_at: 1,
@@ -101,7 +101,13 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
   try {
     const challengeId = parseInt(req.params.challengeId);
     const userId = req.user.userId;
-    const updates = req.body;
+    const updates = req.body as {
+      status?: 'unsolved' | 'solved' | 'failed';
+      user_answer?: string;
+      hints_used?: number;
+      hintsUsed?: number;
+      time_spent_seconds?: number;
+    };
     
     const collection = await getCollection('user_progress');
     const users = await getCollection('users');
@@ -117,7 +123,18 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
 
     // Check if moving to solved state
     const existingProgress = await collection.findOne({ user_id: userId, challenge_id: challengeId });
-    const isFirstSolve = updates.status === 'solved' && (!existingProgress || existingProgress.status !== 'solved');
+    const nextStatus = updates.status;
+    if (!nextStatus || !['unsolved', 'solved', 'failed'].includes(nextStatus)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const normalizedHintsUsedRaw = updates.hints_used ?? updates.hintsUsed;
+    const normalizedHintsUsed = Number.isFinite(normalizedHintsUsedRaw)
+      ? Math.max(0, Math.floor(Number(normalizedHintsUsedRaw)))
+      : (existingProgress?.hints_used ?? existingProgress?.hintsUsed ?? 0);
+
+    const nextAttempts = Math.max(0, (existingProgress?.attempts ?? 0) + 1);
+    const isFirstSolve = nextStatus === 'solved' && (!existingProgress || existingProgress.status !== 'solved');
 
     let xpEarned = 0;
     let newStreak = 0;
@@ -125,7 +142,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
     if (isFirstSolve) {
       // Calculate XP
       const baseXP = challenge.difficulty === 'easy' ? 100 : challenge.difficulty === 'medium' ? 200 : 300;
-      const penalty = (updates.hintsUsed || 0) * 0.2;
+      const penalty = normalizedHintsUsed * 0.2;
       xpEarned = Math.max(0, Math.floor(baseXP * (1 - penalty)));
 
       // Calculate Streak
@@ -157,7 +174,14 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
     }
 
     const updateData = {
-      ...updates,
+      status: nextStatus,
+      user_answer: typeof updates.user_answer === 'string' ? updates.user_answer : (existingProgress?.user_answer ?? null),
+      attempts: nextAttempts,
+      hints_used: Math.max(existingProgress?.hints_used ?? 0, normalizedHintsUsed),
+      time_spent_seconds: Number.isFinite(updates.time_spent_seconds)
+        ? Math.max(0, Math.floor(Number(updates.time_spent_seconds)))
+        : (existingProgress?.time_spent_seconds ?? 0),
+      solved_at: isFirstSolve ? now : (existingProgress?.solved_at ?? null),
       xp_earned: isFirstSolve ? xpEarned : (existingProgress?.xp_earned || 0),
       updated_at: now,
     };

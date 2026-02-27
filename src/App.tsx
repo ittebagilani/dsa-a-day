@@ -14,6 +14,7 @@ import LegacyChallengeRedirect from "./pages/LegacyChallengeRedirect";
 import ManageAccountPage from "./pages/ManageAccountPage";
 import AuthCallback from "./pages/AuthCallback";
 import SuccessPage from "./pages/SuccessPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/past-challenges" element={<PastChallengesPage />} />
               <Route path="/account" element={<ManageAccountPage />} />
               <Route path="/auth-callback" element={<AuthCallback />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/success" element={<SuccessPage />} />
               <Route path="/:slug" element={<ChallengePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
