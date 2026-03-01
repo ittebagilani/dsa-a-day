@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { PuzzleSolver } from "@/components/PuzzleSolver";
 import { Button } from "@/components/ui/button";
 import { usePastChallenges, useTodaysChallenge } from "@/hooks/use-challenges";
@@ -23,7 +22,6 @@ const ChallengePage = () => {
         <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
           <p className="text-muted-foreground">Invalid challenge URL.</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -35,7 +33,6 @@ const ChallengePage = () => {
         <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
           <p className="text-muted-foreground">Loading challenge...</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -54,7 +51,6 @@ const ChallengePage = () => {
         <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
           <p className="text-muted-foreground">Challenge not found.</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -100,7 +96,6 @@ const ChallengePage = () => {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 };

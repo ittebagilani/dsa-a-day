@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Leaderboard } from "@/components/Leaderboard";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,8 +49,6 @@ const LeaderboardPage = () => {
           </div>
         </div>
       </main>
-      
-      <Footer />
     </div>
   );
 };

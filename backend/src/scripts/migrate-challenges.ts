@@ -68,7 +68,25 @@ async function migrate() {
     for (const challenge of challenges) {
       await collection.updateOne(
         { id: challenge.id },
-        { $set: challenge },
+        {
+          $set: {
+            id: challenge.id,
+            type: challenge.type,
+            difficulty: challenge.difficulty,
+            title: challenge.title,
+            description: challenge.description,
+            code: challenge.code,
+            bugLine: challenge.bugLine ?? null,
+            correctAnswer: challenge.correctAnswer,
+            hints: challenge.hints,
+            explanation: challenge.explanation,
+            is_active: true,
+          },
+          // Keep original date on reruns to prevent date drift.
+          $setOnInsert: {
+            date: challenge.date,
+          },
+        },
         { upsert: true }
       );
       console.log(`Migrated: ${challenge.title}`);

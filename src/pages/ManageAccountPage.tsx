@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,6 @@ const ManageAccountPage = () => {
         <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
           <p className="text-muted-foreground">Loading account...</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -53,7 +51,6 @@ const ManageAccountPage = () => {
             </Button>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -119,7 +116,6 @@ const ManageAccountPage = () => {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 };

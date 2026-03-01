@@ -28,12 +28,26 @@ async function migrate() {
     for (const challenge of challenges) {
       await collection.updateOne(
         { id: challenge.id },
-        { 
+        {
           $set: {
-            ...challenge,
+            type: challenge.type,
+            difficulty: challenge.difficulty,
+            title: challenge.title,
+            description: challenge.description,
+            code: challenge.code,
+            bugLine: challenge.bugLine ?? null,
+            correctAnswer: challenge.correctAnswer,
+            hints: challenge.hints,
+            explanation: challenge.explanation,
+            conceptTitle: challenge.conceptTitle,
+            conceptContent: challenge.conceptContent,
             is_active: true,
-            created_at: new Date()
-          } 
+            created_at: new Date(),
+          },
+          // Preserve stored date for existing rows so migration reruns do not shift challenge days.
+          $setOnInsert: {
+            date: challenge.date,
+          },
         },
         { upsert: true }
       );

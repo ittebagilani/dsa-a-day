@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
 
 export default function SuccessPage() {
   const [searchParams] = useSearchParams();
@@ -40,7 +39,6 @@ export default function SuccessPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

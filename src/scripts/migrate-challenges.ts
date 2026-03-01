@@ -36,26 +36,31 @@ async function migrateChallenges() {
   let errorCount = 0;
 
   for (const challenge of challenges) {
-    const data = {
-      id: challenge.id,
-      date: challenge.date,
-      type: challenge.type,
-      difficulty: challenge.difficulty,
-      title: challenge.title,
-      description: challenge.description,
-      code: challenge.code,
-      bugLine: challenge.bugLine || null,
-      correctAnswer: challenge.correctAnswer,
-      hints: challenge.hints,
-      explanation: challenge.explanation,
-      is_active: true,
-      created_at: new Date(),
-    };
-
     try {
-      await collection.replaceOne(
+      await collection.updateOne(
         { id: challenge.id },
-        data,
+        {
+          $set: {
+            id: challenge.id,
+            type: challenge.type,
+            difficulty: challenge.difficulty,
+            title: challenge.title,
+            description: challenge.description,
+            code: challenge.code,
+            bugLine: challenge.bugLine ?? null,
+            correctAnswer: challenge.correctAnswer,
+            hints: challenge.hints,
+            explanation: challenge.explanation,
+            conceptTitle: challenge.conceptTitle,
+            conceptContent: challenge.conceptContent,
+            is_active: true,
+            created_at: new Date(),
+          },
+          // Preserve stored date for existing rows so migration reruns do not shift challenge days.
+          $setOnInsert: {
+            date: challenge.date,
+          },
+        },
         { upsert: true }
       );
       console.log(`✅ Migrated challenge ${challenge.id}: ${challenge.title}`);

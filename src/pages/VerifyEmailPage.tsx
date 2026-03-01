@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -31,7 +30,6 @@ const VerifyEmailPage = () => {
           </Button>
         </div>
       </main>
-      <Footer />
     </div>
   );
 };

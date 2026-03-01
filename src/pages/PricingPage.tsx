@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Pricing } from "@/components/Pricing";
 
 const PricingPage = () => {
@@ -57,8 +56,6 @@ const PricingPage = () => {
           </div>
         </div>
       </main>
-      
-      <Footer />
     </div>
   );
 };

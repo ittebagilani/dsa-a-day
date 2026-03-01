@@ -1,5 +1,4 @@
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Button } from "@/components/ui/button";
 import { usePastChallenges } from "@/hooks/use-challenges";
@@ -28,7 +27,6 @@ const PastChallengesPage = () => {
         <main className="flex-1 pt-24 pb-16 flex items-center justify-center">
           <p className="text-muted-foreground">Loading...</p>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -48,7 +46,6 @@ const PastChallengesPage = () => {
             </Button>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -108,8 +105,6 @@ const PastChallengesPage = () => {
           </div>
         </div>
       </main>
-      
-      <Footer />
     </div>
   );
 };
