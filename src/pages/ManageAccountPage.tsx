@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSolvedChallenges } from "@/hooks/use-progress";
+import { useAccountStats, useSolvedChallenges } from "@/hooks/use-progress";
 import { formatChallengeDate } from "@/lib/challenge-date";
 import { Link } from "react-router-dom";
 
@@ -24,6 +24,7 @@ const ManageAccountPage = () => {
   const { user, loading: authLoading } = useAuth();
   const { isPremium } = useSubscription();
   const { data: solvedChallenges = [], isLoading } = useSolvedChallenges();
+  const { data: accountStats, isLoading: statsLoading } = useAccountStats();
 
   if (authLoading) {
     return (
@@ -64,7 +65,7 @@ const ManageAccountPage = () => {
             <div>
               <h1 className="text-3xl font-bold">Manage Account</h1>
               <p className="text-muted-foreground mt-2">
-                Review your solved problems and time spent.
+                Review your XP and previously solved levels.
               </p>
             </div>
             {!isPremium && (
@@ -72,6 +73,29 @@ const ManageAccountPage = () => {
                 <Link to="/pricing">Upgrade</Link>
               </Button>
             )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3 mb-8">
+            <div className="rounded-lg border p-5">
+              <p className="text-sm text-muted-foreground">Total XP</p>
+              <p className="text-3xl font-bold mt-2">
+                {statsLoading ? "—" : (accountStats?.total_xp ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-lg border p-5">
+              <p className="text-sm text-muted-foreground">Previous Levels Solved</p>
+              <p className="text-3xl font-bold mt-2">
+                {statsLoading
+                  ? "—"
+                  : (accountStats?.solved_count ?? solvedChallenges.length).toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-lg border p-5">
+              <p className="text-sm text-muted-foreground">Current Streak</p>
+              <p className="text-3xl font-bold mt-2">
+                {statsLoading ? "—" : (accountStats?.streak ?? 0).toLocaleString()}
+              </p>
+            </div>
           </div>
 
           {isLoading ? (

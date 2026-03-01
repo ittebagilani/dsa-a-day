@@ -4,6 +4,35 @@ import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
+// Get account stats for the authenticated user
+router.get('/me/stats', authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.userId;
+    const users = await getCollection('users');
+    const progress = await getCollection('user_progress');
+
+    const [user, solvedCount] = await Promise.all([
+      users.findOne(
+        { id: userId },
+        { projection: { _id: 0, xp: 1, streak: 1 } }
+      ),
+      progress.countDocuments({
+        user_id: userId,
+        status: 'solved',
+      }),
+    ]);
+
+    res.json({
+      total_xp: Number(user?.xp ?? 0),
+      streak: Number(user?.streak ?? 0),
+      solved_count: solvedCount,
+    });
+  } catch (error) {
+    console.error('Error fetching account stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all solved challenges for the authenticated user
 router.get('/me/solved', authenticateToken, async (req: any, res) => {
   try {

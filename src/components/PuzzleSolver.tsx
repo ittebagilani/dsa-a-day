@@ -147,7 +147,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const normalizeAnswer = (answer: string): string => {
     return answer
       .trim()
-      .replace(/\s+/g, ' ')
+      .replace(/\s+/g, '')
       .replace(/;\s*$/, '')
       .toLowerCase();
   };

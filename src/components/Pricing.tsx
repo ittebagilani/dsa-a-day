@@ -26,7 +26,6 @@ const tiers: PricingTier[] = [
     features: [
       "1 daily challenge",
       "1 hint per challenge",
-      "Basic leaderboard access",
       "Progress tracking",
       "Community access",
     ],
@@ -43,7 +42,6 @@ const tiers: PricingTier[] = [
       "Unlimited hints",
       "Full solution explanations",
       "Advanced analytics",
-      "Premium leaderboard",
       "Difficulty customization",
       "Priority support",
     ],

@@ -34,7 +34,7 @@ export function useRecordAttempt() {
       queryClient.invalidateQueries({ queryKey: ['progress', variables.challengeId] });
       queryClient.invalidateQueries({ queryKey: ['progress', 'solved'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['progress', 'account-stats'] });
     },
   });
 }
@@ -44,6 +44,15 @@ export function useSolvedChallenges() {
   return useQuery({
     queryKey: ['progress', 'solved'],
     queryFn: () => progressService.getSolvedChallenges(),
+    enabled: !!user,
+  });
+}
+
+export function useAccountStats() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['progress', 'account-stats'],
+    queryFn: () => progressService.getAccountStats(),
     enabled: !!user,
   });
 }

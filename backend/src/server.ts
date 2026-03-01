@@ -16,7 +16,6 @@ import progressRoutes from './routes/progress';
 import subscriptionRoutes from './routes/subscriptions';
 import stripeRoutes from './routes/stripe';
 import webhookRoutes from './routes/webhooks';
-import leaderboardRoutes from './routes/leaderboard';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -107,7 +106,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/stripe', stripeRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
 
 // Serve frontend build from the same service (single URL deployment).
 const frontendDistPath = resolveFrontendDistPath();

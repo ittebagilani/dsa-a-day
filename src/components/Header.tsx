@@ -31,13 +31,6 @@ export function Header() {
           </NavLink>
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <NavLink
-              to="/leaderboard"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-foreground"
-            >
-              Leaderboard
-            </NavLink>
-            <NavLink
               to="/past-challenges"
               className="text-muted-foreground hover:text-foreground transition-colors"
               activeClassName="text-foreground"

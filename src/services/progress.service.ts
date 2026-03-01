@@ -27,6 +27,12 @@ export interface SolvedChallengeProgress {
   challenge_type: 'bug-fix' | 'complete-line' | 'find-problem' | null;
 }
 
+export interface AccountStats {
+  total_xp: number;
+  streak: number;
+  solved_count: number;
+}
+
 export const progressService = {
   getAuthHeader() {
     const token = localStorage.getItem('auth-token');
@@ -50,6 +56,18 @@ export const progressService = {
       },
     });
     if (!response.ok) return [];
+    return response.json();
+  },
+
+  async getAccountStats(): Promise<AccountStats> {
+    const response = await fetch(`${API_URL}/progress/me/stats`, {
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+    if (!response.ok) {
+      return { total_xp: 0, streak: 0, solved_count: 0 };
+    }
     return response.json();
   },
 

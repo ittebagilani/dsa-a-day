@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Index from "./pages/Index";
-import LeaderboardPage from "./pages/LeaderboardPage";
 import PricingPage from "./pages/PricingPage";
 import PastChallengesPage from "./pages/PastChallengesPage";
 import ChallengePage from "./pages/ChallengePage";
@@ -30,7 +29,6 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/challenges/:id" element={<LegacyChallengeRedirect />} />
-              <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/past-challenges" element={<PastChallengesPage />} />
               <Route path="/account" element={<ManageAccountPage />} />
