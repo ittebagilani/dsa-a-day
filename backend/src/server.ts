@@ -21,7 +21,39 @@ import leaderboardRoutes from './routes/leaderboard';
 const app = express();
 const PORT = process.env.PORT || 3001;
 const frontendUrl = requireEnv('FRONTEND_URL');
-const allowedOrigins = new Set([frontendUrl, ...optionalCsvEnv('CORS_ORIGINS')]);
+
+function normalizeOrigin(origin: string): string {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    return origin.replace(/\/+$/, '');
+  }
+}
+
+function buildAllowedOrigins(): Set<string> {
+  const origins = [frontendUrl, ...optionalCsvEnv('CORS_ORIGINS')]
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean);
+
+  const expanded = new Set<string>(origins);
+  for (const origin of origins) {
+    try {
+      const parsed = new URL(origin);
+      const hostname = parsed.hostname;
+      if (hostname.startsWith('www.')) {
+        expanded.add(`${parsed.protocol}//${hostname.replace(/^www\./, '')}${parsed.port ? `:${parsed.port}` : ''}`);
+      } else if (hostname.split('.').length >= 2) {
+        expanded.add(`${parsed.protocol}//www.${hostname}${parsed.port ? `:${parsed.port}` : ''}`);
+      }
+    } catch {
+      // Ignore invalid URL entries and keep original values.
+    }
+  }
+
+  return expanded;
+}
+
+const allowedOrigins = buildAllowedOrigins();
 
 function resolveFrontendDistPath(): string | null {
   const envPath = process.env.FRONTEND_DIST_PATH;
@@ -44,15 +76,25 @@ function resolveFrontendDistPath(): string | null {
 }
 
 // Middleware
-app.use(cors({
+const corsMiddleware = cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin) {
       callback(null, true);
       return;
     }
-    callback(new Error('Not allowed by CORS'));
+
+    const normalized = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalized)) {
+      callback(null, true);
+      return;
+    }
+
+    console.warn(`Blocked CORS origin: ${origin}`);
+    // Block CORS without throwing a server error.
+    callback(null, false);
   },
-}));
+});
+app.use('/api', corsMiddleware);
 
 // Stripe Webhooks need the raw body for signature verification
 app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRoutes);
