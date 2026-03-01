@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Request, Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
@@ -13,6 +13,7 @@ const FRONTEND_URL = requireEnv('FRONTEND_URL');
 const BACKEND_URL = requireEnv('BACKEND_URL');
 const GOOGLE_CLIENT_ID = requireEnv('GOOGLE_CLIENT_ID');
 const GOOGLE_CLIENT_SECRET = requireEnv('GOOGLE_CLIENT_SECRET');
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 
 const OAUTH_STATE_COOKIE = 'oauth_state';
 const oauthCodes = new Map<string, { token: string; expiresAt: number }>();
@@ -27,6 +28,34 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
     acc[rawKey] = decodeURIComponent(rest.join('=') || '');
     return acc;
   }, {});
+}
+
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
+function getRequestOrigin(req: Request): string {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const proto =
+    (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto?.split(',')[0]) ||
+    req.protocol;
+  const host =
+    (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost?.split(',')[0]) ||
+    req.get('host');
+
+  if (proto && host) {
+    return `${proto.trim()}://${host.trim()}`;
+  }
+
+  return BACKEND_URL;
+}
+
+function getGoogleRedirectUri(req: Request): string {
+  if (GOOGLE_REDIRECT_URI && GOOGLE_REDIRECT_URI.trim()) {
+    return GOOGLE_REDIRECT_URI.trim();
+  }
+  return `${normalizeBaseUrl(getRequestOrigin(req))}/api/auth/google/callback`;
 }
 
 function normalizeEmail(email: string): string {
@@ -241,13 +270,14 @@ router.get('/verify-email', async (req, res) => {
 router.get('/google', oauthRateLimit, (req, res) => {
   const rootUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const state = crypto.randomUUID();
+  const redirectUri = getGoogleRedirectUri(req);
   res.setHeader(
     'Set-Cookie',
     `${OAUTH_STATE_COOKIE}=${encodeURIComponent(state)}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
   );
 
   const options = {
-    redirect_uri: `${BACKEND_URL}/api/auth/google/callback`,
+    redirect_uri: redirectUri,
     client_id: GOOGLE_CLIENT_ID,
     access_type: 'offline',
     response_type: 'code',
@@ -281,7 +311,7 @@ router.get('/google/callback', oauthRateLimit, async (req, res) => {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${BACKEND_URL}/api/auth/google/callback`,
+        redirect_uri: getGoogleRedirectUri(req),
         grant_type: 'authorization_code',
       }),
     });
