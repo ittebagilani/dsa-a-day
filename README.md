@@ -62,7 +62,7 @@ This project is built with:
 
 ## Analytics (PostHog)
 
-This project includes lightweight analytics tracking with PostHog (no SDK dependency).
+This project uses the official PostHog React setup (`posthog-js` + `PostHogProvider`).
 
 Frontend env:
 
@@ -75,6 +75,12 @@ Backend env:
 - `POSTHOG_HOST` (optional, defaults to `https://us.i.posthog.com`)
 
 If keys are not set, analytics calls are no-ops.
+
+To view events:
+
+1. Open your PostHog project.
+2. Go to **Activity** for real-time events.
+3. Go to **Data management → Events** for event definitions and volumes.
 
 ## How can I deploy this project?
 

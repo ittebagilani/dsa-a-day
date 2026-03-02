@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { trackEvent } from '@/lib/analytics';
+import { identifyAnalyticsUser, resetAnalyticsUser, trackEvent } from '@/lib/analytics';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -30,11 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 > Date.now()) {
-          setUser({
+          const hydratedUser = {
             id: payload.userId,
             email: payload.email,
             created_at: new Date(payload.iat * 1000),
-          });
+          };
+          setUser(hydratedUser);
+          identifyAnalyticsUser(hydratedUser.id, { email: hydratedUser.email });
         } else {
           localStorage.removeItem('auth-token');
         }
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date(userData.created_at),
     });
     localStorage.setItem('auth-token', token);
+    identifyAnalyticsUser(userData.id, { email: userData.email });
     trackEvent('auth_sign_in_success', { method: 'email' }, userData.id);
   };
 
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = () => {
     trackEvent('auth_sign_out', {}, user?.id);
     localStorage.removeItem('auth-token');
+    resetAnalyticsUser();
     setUser(null);
   };
 
