@@ -29,6 +29,15 @@ export function Header() {
           <NavLink to="/" className="font-bold text-lg">
             DSA a Day
           </NavLink>
+          <nav className="md:hidden flex items-center text-sm">
+            <NavLink
+              to="/past-challenges"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              activeClassName="text-foreground"
+            >
+              Past Challenges
+            </NavLink>
+          </nav>
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <NavLink
               to="/past-challenges"

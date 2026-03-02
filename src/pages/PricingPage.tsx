@@ -24,16 +24,16 @@ const PricingPage = () => {
               <div>
                 <h3 className="font-medium mb-2">What's included in the free tier?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Free users get access to the daily challenge every day. No hints are available, 
-                  but you can still learn from the solution after 3 attempts.
+                  Free users get 1 daily challenge, 1 hint per challenge, and progress tracking.
+                  Community access and full explanations are not included.
                 </p>
               </div>
               
               <div>
                 <h3 className="font-medium mb-2">What do premium users get?</h3>
                 <p className="text-sm text-muted-foreground">
-                  Premium users get 3 hints per challenge, access to all 30+ previous challenges, 
-                  and detailed analytics on their progress.
+                  Premium users get unlimited daily challenges, 3 hints per challenge,
+                  full solution explanations, and priority support.
                 </p>
               </div>
               

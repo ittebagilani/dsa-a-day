@@ -49,7 +49,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const [earnedXp, setEarnedXp] = useState(0);
   const [newStreak, setNewStreak] = useState<number | undefined>(undefined);
 
-  const maxHints = isPremium ? 3 : 0;
+  const maxHints = isPremium ? 3 : 1;
   const timerStorageKey = `dcq.timer.${user?.id ?? 'guest'}.${challenge.id}`;
   const welcomeStorageKey = `dcq.welcome.${user?.id ?? 'guest'}.v1`;
   const currentHint = hintsUsed > 0 && hintsUsed <= challenge.hints.length 
@@ -388,8 +388,8 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
             </div>
           </div>
 
-          {/* Hints Section (Premium only) */}
-          {isPremium && currentHint.length > 0 && (
+          {/* Hints Section */}
+          {currentHint.length > 0 && (
             <div className="mb-6 space-y-2">
               {currentHint.map((hint, index) => (
                 <div 
@@ -432,16 +432,10 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                   Submit Answer
                 </Button>
                 
-                {isPremium && hintsUsed < maxHints && hintsUsed < challenge.hints.length && (
+                {hintsUsed < maxHints && hintsUsed < challenge.hints.length && (
                   <Button variant="outline" onClick={handleUseHint}>
                     Use Hint ({maxHints - hintsUsed} left)
                   </Button>
-                )}
-                
-                {!isPremium && (
-                  <span className="text-sm text-muted-foreground">
-                    Hints available for premium users
-                  </span>
                 )}
               </div>
             </div>
@@ -467,17 +461,28 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                 </div>
               )}
               
-              <Button variant="outline" onClick={() => setShowExplanation(!showExplanation)}>
-                {showExplanation ? "Hide" : "Show"} Explanation
-              </Button>
-              
-              {showExplanation && (
+              {isPremium && (
+                <>
+                  <Button variant="outline" onClick={() => setShowExplanation(!showExplanation)}>
+                    {showExplanation ? "Hide" : "Show"} Explanation
+                  </Button>
+                  
+                  {showExplanation && (
+                    <div className="p-4 rounded-lg bg-secondary/50 border">
+                      <h4 className="font-medium mb-2">Explanation</h4>
+                      <p className="text-sm text-muted-foreground mb-3">{challenge.explanation}</p>
+                      <div className="font-mono text-sm p-2 bg-code-bg rounded">
+                        {challenge.correctAnswer}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {!isPremium && (
                 <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <h4 className="font-medium mb-2">Explanation</h4>
-                  <p className="text-sm text-muted-foreground mb-3">{challenge.explanation}</p>
-                  <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                    {challenge.correctAnswer}
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Upgrade to Pro to see full explanations.
+                  </p>
                 </div>
               )}
             </div>
@@ -489,11 +494,11 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
               <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
                 <h3 className="font-semibold text-destructive mb-2">Out of attempts</h3>
                 <p className="text-sm text-muted-foreground">
-                  Don't worry, learning from solutions helps too!
+                  {isPremium ? "Don't worry, learning from solutions helps too!" : "Better luck next time."}
                 </p>
               </div>
 
-              {userAnswer.trim() && (
+              {isPremium && userAnswer.trim() && (
                 <div className="p-4 rounded-lg bg-secondary/50 border">
                   <h4 className="font-medium mb-2">Your Last Answer</h4>
                   <div className="font-mono text-sm p-2 bg-code-bg rounded">
@@ -501,19 +506,21 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                   </div>
                 </div>
               )}
-              
-              <div className="p-4 rounded-lg bg-secondary/50 border">
-                <h4 className="font-medium mb-2">Solution</h4>
-                <div className="font-mono text-sm p-2 bg-code-bg rounded mb-3">
-                  {challenge.correctAnswer}
+
+              {isPremium && (
+                <div className="p-4 rounded-lg bg-secondary/50 border">
+                  <h4 className="font-medium mb-2">Solution</h4>
+                  <div className="font-mono text-sm p-2 bg-code-bg rounded mb-3">
+                    {challenge.correctAnswer}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{challenge.explanation}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">{challenge.explanation}</p>
-              </div>
+              )}
             </div>
           )}
 
           {/* Give Up Option */}
-          {status === "unsolved" && attempts > 0 && (
+          {status === "unsolved" && attempts > 0 && isPremium && (
             <div className="mt-4 pt-4 border-t">
               <Button 
                 variant="ghost" 
@@ -530,32 +537,32 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
 
       {/* Completion Modal */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[92vw] max-w-[360px] sm:max-w-md p-4 sm:p-6">
           <DialogHeader className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10 mb-4 text-success">
               <Trophy className="h-6 w-6" />
             </div>
-            <DialogTitle className="text-2xl text-center">Challenge Complete!</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl text-center">Challenge Complete!</DialogTitle>
             <DialogDescription className="text-center pt-2">
               Great work! You've successfully solved today's challenge.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid grid-cols-3 gap-4 py-8 border-y my-4">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4 py-4 sm:py-8 border-y my-3 sm:my-4">
             <div className="text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase font-semibold">Time</p>
-              <div className="flex items-center justify-center gap-1 text-lg font-bold">
+              <div className="flex items-center justify-center gap-1 text-base sm:text-lg font-bold">
                 <Timer className="w-4 h-4 text-primary" />
                 {formatTime(timeTaken)}
               </div>
             </div>
             <div className="text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase font-semibold">XP Gained</p>
-              <div className="text-lg font-bold text-primary">+{earnedXp}</div>
+              <div className="text-base sm:text-lg font-bold text-primary">+{earnedXp}</div>
             </div>
             <div className="text-center space-y-1">
               <p className="text-xs text-muted-foreground uppercase font-semibold">Streak</p>
-              <div className="flex items-center justify-center gap-1 text-lg font-bold text-orange-500">
+              <div className="flex items-center justify-center gap-1 text-base sm:text-lg font-bold text-orange-500">
                 <Flame className="w-4 h-4" />
                 {newStreak ?? 0}
               </div>
