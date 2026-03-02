@@ -29,23 +29,7 @@ export function Header() {
           <NavLink to="/" className="font-bold text-lg">
             DSA a Day
           </NavLink>
-          <nav className="md:hidden flex items-center text-sm">
-            <NavLink
-              to="/past-challenges"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-foreground"
-            >
-              Past Challenges
-            </NavLink>
-          </nav>
           <nav className="hidden md:flex items-center gap-6 text-sm">
-            <NavLink
-              to="/past-challenges"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              activeClassName="text-foreground"
-            >
-              Past Challenges
-            </NavLink>
             <NavLink
               to="/pricing"
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -74,6 +58,9 @@ export function Header() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => navigate('/past-challenges')}>
+                    Past Challenges
+                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => navigate('/account')}>
                     Manage Account
                   </DropdownMenuItem>
