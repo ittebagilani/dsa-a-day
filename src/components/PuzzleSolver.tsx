@@ -628,7 +628,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       <Dialog open={showWelcomeModal} onOpenChange={handleWelcomeModalChange}>
         <DialogContent className="w-[92vw] max-w-[360px] sm:max-w-md p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Welcome to Daily Code Quest</DialogTitle>
+            <DialogTitle>Welcome to DSA a Day</DialogTitle>
             <DialogDescription>
               Solve one DSA bug-fix challenge each day, build consistency, and level up your problem-solving skills.
             </DialogDescription>

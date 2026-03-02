@@ -206,7 +206,7 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
     return createAndStoreFallbackChallenge();
   }
 
-  const prompt = `Generate a Data Structures and Algorithms (DSA) coding challenge for a "Daily Code Quest" app.
+  const prompt = `Generate a Data Structures and Algorithms (DSA) coding challenge for a "DSA a Day" app.
   The challenge should be of one of these types:
   1. "bug-fix": A code snippet with a specific bug on one line.
   2. "complete-line": A code snippet with one or two lines missing.

@@ -27,7 +27,7 @@ export default function SuccessPage() {
           </div>
           <h1 className="text-3xl font-bold mb-4">Subscription Success!</h1>
           <p className="text-muted-foreground mb-8">
-            Thank you for subscribing to Daily Code Quest Pro. Your premium features are now active.
+            Thank you for subscribing to DSA a Day Pro. Your premium features are now active.
           </p>
           <div className="space-y-4">
             <Button className="w-full" onClick={() => navigate('/')}>

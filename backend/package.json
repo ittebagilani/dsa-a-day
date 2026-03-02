@@ -1,7 +1,7 @@
 {
   "name": "daily-code-quest-backend",
   "version": "1.0.0",
-  "description": "Backend API for Daily Code Quest",
+  "description": "Backend API for DSA a Day",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",

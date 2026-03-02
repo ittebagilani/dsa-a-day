@@ -21,9 +21,9 @@ export async function sendVerificationEmail(to: string, verificationUrl: string)
     body: JSON.stringify({
       from,
       to: [to],
-      subject: 'Verify your Daily Code Quest account',
+      subject: 'Verify your DSA a Day account',
       html: `
-        <p>Welcome to Daily Code Quest.</p>
+        <p>Welcome to DSA a Day.</p>
         <p>Please verify your email address to activate your account:</p>
         <p><a href="${verificationUrl}">Verify email</a></p>
         <p>This link expires in 24 hours.</p>
