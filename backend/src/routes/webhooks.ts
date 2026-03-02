@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Stripe from 'stripe';
 import { getCollection } from '../lib/mongodb';
 import { requireEnv } from '../lib/env';
+import { captureEvent } from '../lib/analytics';
 
 const router = Router();
 const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'));
@@ -44,6 +45,15 @@ router.post('/', async (req, res) => {
         );
         
         console.log(`Updated subscription for user: ${userId}`);
+        void captureEvent({
+          distinctId: userId,
+          event: 'subscription_started_server',
+          properties: {
+            plan_type: 'pro',
+            stripe_customer_id: session.customer as string,
+            stripe_subscription_id: session.subscription as string,
+          },
+        });
       } catch (error) {
         console.error('Error updating subscription in database:', error);
         return res.status(500).json({ error: 'Database update failed' });

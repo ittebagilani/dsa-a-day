@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { trackEvent } from '@/lib/analytics';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -24,6 +25,7 @@ export function CheckoutButton({
 
   const handleCheckout = async () => {
     if (!user) {
+      trackEvent('paywall_blocked_unauthenticated', { source: 'checkout_button' });
       toast({
         title: 'Authentication required',
         description: 'Please sign in to subscribe.',
@@ -33,6 +35,7 @@ export function CheckoutButton({
     }
 
     setLoading(true);
+    trackEvent('upgrade_clicked', { source: 'checkout_button', priceId }, user.id);
 
     try {
       if (!priceId) {
@@ -59,9 +62,15 @@ export function CheckoutButton({
         throw new Error('No checkout URL received');
       }
 
+      trackEvent('checkout_redirect_started', { priceId }, user.id);
       window.location.href = data.url;
     } catch (error: any) {
       console.error('Checkout error:', error);
+      trackEvent(
+        'checkout_failed_client',
+        { priceId, message: error?.message || 'unknown_error' },
+        user?.id
+      );
       toast({
         variant: 'destructive',
         title: 'Checkout failed',

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Stripe from 'stripe';
 import { authenticateToken } from '../middleware/auth';
 import { optionalCsvEnv, requireEnv } from '../lib/env';
+import { captureEvent } from '../lib/analytics';
 
 const router = Router();
 const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'));
@@ -34,6 +35,15 @@ router.post('/create-checkout-session', authenticateToken, async (req: any, res)
       cancel_url: `${FRONTEND_URL}/pricing`,
       metadata: {
         userId: userId,
+      },
+    });
+
+    void captureEvent({
+      distinctId: userId,
+      event: 'checkout_session_created_server',
+      properties: {
+        price_id: priceId,
+        checkout_session_id: session.id,
       },
     });
 

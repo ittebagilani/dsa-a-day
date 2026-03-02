@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getCollection } from '../lib/mongodb';
 import { authenticateToken } from '../middleware/auth';
+import { captureEvent } from '../lib/analytics';
 
 const router = Router();
 
@@ -230,6 +231,50 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
       },
       { upsert: true }
     );
+
+    void captureEvent({
+      distinctId: userId,
+      event: 'attempt_submitted_server',
+      properties: {
+        challenge_id: challengeId,
+        status: nextStatus,
+        attempts: nextAttempts,
+        hints_used: normalizedHintsUsed,
+        time_spent_seconds: updateData.time_spent_seconds,
+        challenge_difficulty: challenge.difficulty,
+        challenge_type: challenge.type,
+      },
+    });
+
+    if (isFirstSolve) {
+      void captureEvent({
+        distinctId: userId,
+        event: 'challenge_completed_server',
+        properties: {
+          challenge_id: challengeId,
+          attempts: nextAttempts,
+          hints_used: normalizedHintsUsed,
+          xp_earned: xpEarned,
+          streak: newStreak,
+          time_spent_seconds: updateData.time_spent_seconds,
+          challenge_difficulty: challenge.difficulty,
+          challenge_type: challenge.type,
+        },
+      });
+    } else if (nextStatus === 'failed') {
+      void captureEvent({
+        distinctId: userId,
+        event: 'challenge_failed_server',
+        properties: {
+          challenge_id: challengeId,
+          attempts: nextAttempts,
+          hints_used: normalizedHintsUsed,
+          time_spent_seconds: updateData.time_spent_seconds,
+          challenge_difficulty: challenge.difficulty,
+          challenge_type: challenge.type,
+        },
+      });
+    }
     
     res.json({ 
       message: 'Progress updated successfully',

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { trackEvent } from '@/lib/analytics';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -36,6 +37,7 @@ export default function AuthCallback() {
         }
 
         localStorage.setItem('auth-token', data.token);
+        trackEvent('auth_oauth_success', { provider: 'google' });
         toast({
           title: 'Welcome!',
           description: 'You have successfully signed in with OAuth.',
@@ -43,6 +45,7 @@ export default function AuthCallback() {
         navigate('/');
         window.location.reload();
       } catch (error: any) {
+        trackEvent('auth_oauth_failed', { provider: 'google', message: error?.message || 'unknown_error' });
         toast({
           variant: 'destructive',
           title: 'Authentication failed',

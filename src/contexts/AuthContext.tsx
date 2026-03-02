@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -55,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       throw new Error(data.error || 'Failed to sign up');
     }
+
+    trackEvent('auth_sign_up_success', { method: 'email' });
   };
 
   const signIn = async (email: string, password: string) => {
@@ -76,13 +79,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date(userData.created_at),
     });
     localStorage.setItem('auth-token', token);
+    trackEvent('auth_sign_in_success', { method: 'email' }, userData.id);
   };
 
   const signInWithOAuth = (provider: 'google') => {
+    trackEvent('auth_oauth_started', { provider });
     window.location.href = `${API_URL}/auth/${provider}`;
   };
 
   const signOut = () => {
+    trackEvent('auth_sign_out', {}, user?.id);
     localStorage.removeItem('auth-token');
     setUser(null);
   };

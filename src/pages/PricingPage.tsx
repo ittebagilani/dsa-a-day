@@ -1,7 +1,13 @@
 import { Header } from "@/components/Header";
 import { Pricing } from "@/components/Pricing";
+import { useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 const PricingPage = () => {
+  useEffect(() => {
+    trackEvent('paywall_viewed', { source: 'pricing_page' });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />

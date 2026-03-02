@@ -7,6 +7,7 @@ import { Challenge } from "@/services/challenge.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProgress, useRecordAttempt } from "@/hooks/use-progress";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 import {
   Dialog,
   DialogContent,
@@ -173,6 +174,18 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     }
   }, [isStarted, status, welcomeStorageKey]);
 
+  useEffect(() => {
+    trackEvent(
+      'challenge_viewed',
+      {
+        challenge_id: challenge.id,
+        challenge_type: challenge.type,
+        challenge_difficulty: challenge.difficulty,
+      },
+      user?.id
+    );
+  }, [challenge.id, challenge.type, challenge.difficulty, user?.id]);
+
   const normalizeAnswer = (answer: string): string => {
     return answer
       .trim()
@@ -187,6 +200,15 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     setStartTime(now);
     setElapsedTime(0);
     persistTimer({ startTime: now });
+    trackEvent(
+      'challenge_started',
+      {
+        challenge_id: challenge.id,
+        challenge_type: challenge.type,
+        challenge_difficulty: challenge.difficulty,
+      },
+      user?.id
+    );
   };
 
   const handleWelcomeStart = () => {
@@ -229,6 +251,18 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       onComplete?.(false);
     }
 
+    trackEvent(
+      'attempt_submitted',
+      {
+        challenge_id: challenge.id,
+        attempt_number: newAttempts,
+        is_correct: isCorrect,
+        status: submissionStatus,
+        hints_used: hintsUsed,
+      },
+      user?.id
+    );
+
     // Save progress to database if user is logged in
     if (user) {
       try {
@@ -264,7 +298,16 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
 
   const handleUseHint = () => {
     if (hintsUsed < maxHints && hintsUsed < challenge.hints.length) {
-      setHintsUsed(prev => prev + 1);
+      const nextHintsUsed = hintsUsed + 1;
+      setHintsUsed(nextHintsUsed);
+      trackEvent(
+        'hint_used',
+        {
+          challenge_id: challenge.id,
+          hint_number: nextHintsUsed,
+        },
+        user?.id
+      );
     }
   };
 

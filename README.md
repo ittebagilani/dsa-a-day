@@ -60,6 +60,22 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Analytics (PostHog)
+
+This project includes lightweight analytics tracking with PostHog (no SDK dependency).
+
+Frontend env:
+
+- `VITE_POSTHOG_KEY` (required to enable frontend analytics)
+- `VITE_POSTHOG_HOST` (optional, defaults to `https://us.i.posthog.com`)
+
+Backend env:
+
+- `POSTHOG_KEY` (recommended for server-side authoritative events)
+- `POSTHOG_HOST` (optional, defaults to `https://us.i.posthog.com`)
+
+If keys are not set, analytics calls are no-ops.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
