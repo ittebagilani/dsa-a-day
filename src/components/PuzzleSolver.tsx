@@ -45,11 +45,13 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const [timeTaken, setTimeTaken] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [earnedXp, setEarnedXp] = useState(0);
   const [newStreak, setNewStreak] = useState<number | undefined>(undefined);
 
   const maxHints = isPremium ? 3 : 0;
   const timerStorageKey = `dcq.timer.${user?.id ?? 'guest'}.${challenge.id}`;
+  const welcomeStorageKey = `dcq.welcome.${user?.id ?? 'guest'}.v1`;
   const currentHint = hintsUsed > 0 && hintsUsed <= challenge.hints.length 
     ? challenge.hints.slice(0, hintsUsed) 
     : [];
@@ -77,6 +79,22 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const clearPersistedTimer = () => {
     try {
       localStorage.removeItem(timerStorageKey);
+    } catch {
+      // Ignore storage failures.
+    }
+  };
+
+  const hasSeenWelcome = (): boolean => {
+    try {
+      return localStorage.getItem(welcomeStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const persistWelcomeSeen = () => {
+    try {
+      localStorage.setItem(welcomeStorageKey, "1");
     } catch {
       // Ignore storage failures.
     }
@@ -144,6 +162,17 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     }
   }, [status, timerStorageKey]);
 
+  useEffect(() => {
+    if (isStarted || status !== "unsolved") {
+      setShowWelcomeModal(false);
+      return;
+    }
+
+    if (!hasSeenWelcome()) {
+      setShowWelcomeModal(true);
+    }
+  }, [isStarted, status, welcomeStorageKey]);
+
   const normalizeAnswer = (answer: string): string => {
     return answer
       .trim()
@@ -158,6 +187,19 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     setStartTime(now);
     setElapsedTime(0);
     persistTimer({ startTime: now });
+  };
+
+  const handleWelcomeStart = () => {
+    persistWelcomeSeen();
+    setShowWelcomeModal(false);
+    handleStart();
+  };
+
+  const handleWelcomeModalChange = (open: boolean) => {
+    setShowWelcomeModal(open);
+    if (!open) {
+      persistWelcomeSeen();
+    }
   };
 
   const handleSubmit = async () => {
@@ -248,6 +290,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   };
 
   const challengeLanguage = challenge.code.includes("def ") ? "python" : "javascript";
+  const attemptsRemaining = Math.max(0, 3 - attempts);
   const displayCode = challenge.code
     .replace(/\s+#\s*bug here\s*$/gim, "")
     .replace(/\s+\/\/\s*bug here\s*$/gim, "")
@@ -313,6 +356,27 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
               </span>
             </div>
           </div>
+
+          {status === "unsolved" && (
+            <div className="rounded-lg border p-3 bg-card/50 mb-4">
+              <p className="text-sm font-medium mb-2">
+                Chances Left: {attemptsRemaining}/3
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((slot) => {
+                  const isAvailable = slot < attemptsRemaining;
+                  return (
+                    <div
+                      key={slot}
+                      className={`h-2 rounded-full transition-colors ${
+                        isAvailable ? "bg-success" : "bg-destructive/40"
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Code Block */}
           <div className="rounded-lg border bg-code-bg overflow-hidden mb-6">
@@ -505,6 +569,39 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
               onClick={() => setShowSuccessModal(false)}
             >
               Continue Learning
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome Modal */}
+      <Dialog open={showWelcomeModal} onOpenChange={handleWelcomeModalChange}>
+        <DialogContent className="w-[92vw] max-w-[360px] sm:max-w-md p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Welcome to Daily Code Quest</DialogTitle>
+            <DialogDescription>
+              Solve one DSA bug-fix challenge each day, build consistency, and level up your problem-solving skills.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border p-4 bg-card/50">
+              <p className="text-sm font-medium mb-2">You get 3 attempts per challenge.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((slot) => (
+                  <div key={slot} className="h-2 rounded-full bg-success" />
+                ))}
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              The timer starts when you begin. Use hints if you need help, and review the explanation after you solve or run out of attempts.
+            </p>
+          </div>
+
+          <DialogFooter className="sm:justify-center">
+            <Button type="button" className="w-full sm:w-auto gap-2" onClick={handleWelcomeStart}>
+              <PlayCircle className="w-4 h-4" />
+              Start Challenge
             </Button>
           </DialogFooter>
         </DialogContent>

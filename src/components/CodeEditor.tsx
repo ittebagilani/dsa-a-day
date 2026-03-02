@@ -55,19 +55,19 @@ export function CodeEditor({
       </div>
       <div className="relative">
         <div className="absolute inset-0 flex pointer-events-none">
-          <div className="select-none pr-4 pl-4 py-3 text-muted-foreground/50 text-right bg-transparent border-r border-border/40">
+          <div className="w-12 sm:w-14 shrink-0 select-none py-3 pr-2 text-muted-foreground/50 text-right bg-transparent border-r border-border/40">
             {lines.map((line) => (
-              <div key={line} className="leading-relaxed h-6">
+              <div key={line} className="leading-6 min-h-6">
                 {line}
               </div>
             ))}
           </div>
-          <pre ref={preRef} className="flex-1 m-0 py-3 px-4 overflow-auto text-sm leading-relaxed">
+          <pre ref={preRef} className="flex-1 m-0 py-3 px-3 overflow-auto text-sm leading-6">
             <code>
               {highlightedLines.map((html, index) => (
                 <div
                   key={index}
-                  className="h-6"
+                  className="leading-6 min-h-6 whitespace-pre"
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               ))}
@@ -82,11 +82,11 @@ export function CodeEditor({
           placeholder={placeholder}
           wrap="off"
           spellCheck={false}
-          className="relative z-10 w-full bg-transparent resize-y min-h-[120px] py-3 px-4 pl-14 font-mono text-sm leading-relaxed text-transparent caret-foreground outline-none"
-          style={{ WebkitTextFillColor: "transparent" }}
+          className="relative z-10 w-full bg-transparent resize-y min-h-[120px] py-3 px-3 pl-[3.75rem] sm:pl-[4.25rem] font-mono text-sm leading-6 text-transparent caret-foreground outline-none"
+          style={{ WebkitTextFillColor: "transparent", lineHeight: "1.5rem" }}
         />
         {!value && placeholder && (
-          <div className="absolute z-0 left-14 top-3 text-sm text-muted-foreground pointer-events-none">
+          <div className="absolute z-0 left-[3.75rem] sm:left-[4.25rem] top-3 text-sm text-muted-foreground pointer-events-none">
             {placeholder}
           </div>
         )}

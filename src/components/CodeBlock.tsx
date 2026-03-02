@@ -126,15 +126,15 @@ export function CodeBlock({
             return (
               <div
                 key={index}
-                className="flex leading-relaxed"
+                className="flex items-start leading-6"
               >
                 {showLineNumbers && (
-                  <span className="select-none pr-4 text-muted-foreground/50 w-8 text-right">
+                  <span className="select-none pr-3 sm:pr-4 text-muted-foreground/50 w-9 sm:w-10 text-right leading-6 shrink-0">
                     {index + 1}
                   </span>
                 )}
                 <span
-                  className="flex-1"
+                  className="flex-1 leading-6 whitespace-pre"
                   dangerouslySetInnerHTML={{ __html: highlightedLines[index] }}
                 />
               </div>

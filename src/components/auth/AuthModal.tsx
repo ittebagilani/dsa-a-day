@@ -73,7 +73,7 @@ export function AuthModal({ open, onOpenChange, defaultMode = 'signin' }: AuthMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="w-[92vw] max-w-[360px] sm:max-w-[425px] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{mode === 'signin' ? 'Sign In' : 'Create Account'}</DialogTitle>
           <DialogDescription>
