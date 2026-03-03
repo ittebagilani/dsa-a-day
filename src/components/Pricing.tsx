@@ -16,7 +16,9 @@ interface PricingTier {
   priceId?: string;
 }
 
-const proPriceId = import.meta.env.VITE_STRIPE_PRICE_ID_PRO as string | undefined;
+const proPriceId =
+  (import.meta.env.VITE_STRIPE_PRICE_ID_PRO as string | undefined) ||
+  'price_1T6tuIAeAUS7mql1FqguSjOD';
 
 const tiers: PricingTier[] = [
   {
@@ -34,7 +36,7 @@ const tiers: PricingTier[] = [
   },
   {
     name: "Pro",
-    price: "$7",
+    price: "$4.99",
     period: "/month",
     description: "For serious interview prep",
     features: [

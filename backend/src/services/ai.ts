@@ -53,6 +53,79 @@ const normalizeHints = (hints: unknown): string[] => {
   return result.slice(0, 3);
 };
 
+const conceptTopicCatalog = [
+  'Arrays',
+  'Strings',
+  'Hash Maps',
+  'Two Pointers',
+  'Sliding Window',
+  'Stack',
+  'Queue',
+  'Linked Lists',
+  'Binary Search',
+  'Trees',
+  'Graphs',
+  'Dynamic Programming',
+  'Greedy',
+  'Recursion',
+];
+
+const normalizeConceptTopic = (raw?: string): string | null => {
+  if (!raw) return null;
+  const value = raw.toLowerCase();
+  const match = conceptTopicCatalog.find((topic) =>
+    value.includes(topic.toLowerCase().replace(/\s+/g, ' '))
+  );
+  return match || null;
+};
+
+const getRecentConceptTopics = async (
+  collection: Awaited<ReturnType<typeof getCollection>>,
+  challengeDate: string,
+  limit = 4
+): Promise<string[]> => {
+  type RecentChallengeTopic = {
+    conceptTitle?: string;
+    title?: string;
+    description?: string;
+  };
+
+  const recent = await collection
+    .find(
+      {
+        is_active: true,
+        date: { $lt: challengeDate },
+      },
+      {
+        projection: {
+          _id: 0,
+          conceptTitle: 1,
+          title: 1,
+          description: 1,
+        },
+      }
+    )
+    .sort({ date: -1 })
+    .limit(limit)
+    .toArray() as RecentChallengeTopic[];
+
+  return recent
+    .map((challenge) =>
+      normalizeConceptTopic(challenge.conceptTitle) ||
+      normalizeConceptTopic(challenge.title) ||
+      normalizeConceptTopic(challenge.description)
+    )
+    .filter((topic): topic is string => Boolean(topic));
+};
+
+const pickRequiredTopic = (challengeDate: string, recentTopics: string[]): string => {
+  const blocked = new Set(recentTopics);
+  const available = conceptTopicCatalog.filter((topic) => !blocked.has(topic));
+  const pool = available.length > 0 ? available : conceptTopicCatalog;
+  const index = dateToSeed(challengeDate) % pool.length;
+  return pool[index];
+};
+
 const fallbackTemplates: Array<
   Omit<Challenge, 'id' | 'date' | 'is_active'>
 > = [
@@ -178,6 +251,8 @@ const buildFallbackChallenge = (challengeDate: string): Omit<Challenge, 'id'> =>
 export async function generateDailyChallenge(targetDate?: string): Promise<Challenge | null> {
   const collection = await getCollection('challenges');
   const challengeDate = targetDate || getTodayChallengeDateString();
+  const recentTopics = await getRecentConceptTopics(collection, challengeDate, 4);
+  const requiredTopic = pickRequiredTopic(challengeDate, recentTopics);
 
   const existingChallenge = await collection.findOne({
     date: challengeDate,
@@ -231,9 +306,12 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
 
   CRITICAL: For "bug-fix" type, the 'bugLine' must be THE EXACT index of the line containing the bug in the 'code' string, counting from 1. Double check this count.
   CRITICAL: Do not include marker comments like "# Bug here", "// bug here", or "# Missing line here" in the code.
+  CRITICAL: Today's required primary topic is "${requiredTopic}". Build the challenge around this topic.
+  CRITICAL: Avoid repeating these recent topics: ${recentTopics.length > 0 ? recentTopics.join(', ') : 'none'}.
+  CRITICAL: Set "conceptTitle" to one exact value from this list: ${conceptTopicCatalog.join(', ')}.
   
   The date should be ${challengeDate} in YYYY-MM-DD format.
-  Ensure the problem is varied (Arrays, Strings, Trees, Linked Lists, DP, etc.).`;
+  Ensure the problem is varied and not semantically equivalent to recent days (e.g., avoid repeating array sum traversal variants).`;
 
   try {
     const client = getOpenAIClient();
@@ -265,6 +343,7 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
       ...data,
       id: nextId,
       date: challengeDate,
+      conceptTitle: normalizeConceptTopic(data.conceptTitle) || requiredTopic,
       hints: normalizeHints(data.hints),
       is_active: true
     };
