@@ -136,30 +136,27 @@ const fallbackTemplates: Array<
     difficulty: 'hard',
     title: 'Word Break Dynamic Programming',
     description:
-      'Fix this Word Break implementation. It has three independent logic bugs.',
-    code: `function wordBreak(s, wordDict) {
-  const dict = new Set(wordDict);
-  const dp = new Array(s.length + 1).fill(false);
-  dp[0] = false;
+      'You are given a string `s` and a dictionary `word_dict`. The function should return `True` when `s` can be segmented into dictionary words, otherwise `False`. The implementation below has exactly three independent logic bugs to fix.',
+    code: `def word_break(s, word_dict):
+    dictionary = set(word_dict)
+    dp = [False] * (len(s) + 1)
+    dp[0] = False
 
-  for (let i = 1; i <= s.length; i++) {
-    for (let j = 0; j < i; j++) {
-      if (dp[j] && dict.has(s.slice(j, i - 1))) {
-        dp[i] = true;
-        break;
-      }
-    }
-  }
+    for i in range(1, len(s) + 1):
+        for j in range(i):
+            if dp[j] and s[j:i - 1] in dictionary:
+                dp[i] = True
+                break
 
-  return dp[s.length - 1];
+    return dp[len(s) - 1]
 }`,
     bugLine: 4,
-    bugLines: [4, 8, 15],
-    correctAnswer: 'dp[0] = true;',
-    correctAnswers: ['dp[0] = true;', 'if (dp[j] && dict.has(s.slice(j, i))) {', 'return dp[s.length];'],
+    bugLines: [4, 8, 12],
+    correctAnswer: 'dp[0] = True',
+    correctAnswers: ['dp[0] = True', 'if dp[j] and s[j:i] in dictionary:', 'return dp[len(s)]'],
     hints: [
       'Check the DP base case.',
-      'Verify substring boundaries in JavaScript slice.',
+      'Verify substring boundaries in Python slicing.',
       'The final return should represent the full string.',
     ],
     explanation:
@@ -232,8 +229,8 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
     "type": "bug-fix",
     "difficulty": "medium" | "hard",
     "title": "Short Descriptive Title",
-    "description": "Clear explanation of the problem and what to do.",
-    "code": "The code snippet (Python or JavaScript) containing exactly 3 real bugs.",
+    "description": "2-4 sentences including an intro/context, expected behavior, and what to fix.",
+    "code": "A Python code snippet containing exactly 3 real bugs.",
     "bugLines": [1-indexed line number of bug #1, bug #2, bug #3],
     "correctAnswers": ["exact corrected line for bug #1", "exact corrected line for bug #2", "exact corrected line for bug #3"],
     "hints": ["Hint 1", "Hint 2", "Hint 3"],
@@ -245,6 +242,8 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
   CRITICAL: Generate EXACTLY 3 bugs. No more, no less.
   CRITICAL: 'bugLines' and 'correctAnswers' must both have length 3 and corresponding order.
   CRITICAL: Each bug must be on a distinct line. Double check line numbering from 1.
+  CRITICAL: Code must be Python only. Do not return JavaScript.
+  CRITICAL: The description must begin with a short contextual intro sentence before fix instructions.
   CRITICAL: Do not include marker comments like "# Bug here", "// bug here", or "# Missing line here" in the code.
   CRITICAL: Today's required primary topic is "${requiredTopic}". Build the challenge around this topic.
   CRITICAL: Avoid repeating these recent topics: ${recentTopics.length > 0 ? recentTopics.join(', ') : 'none'}.
@@ -280,9 +279,11 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
     const normalizedCorrectAnswers = Array.isArray(data.correctAnswers)
       ? data.correctAnswers.filter((answer: unknown): answer is string => typeof answer === 'string' && answer.trim().length > 0)
       : (typeof data.correctAnswer === 'string' && data.correctAnswer.trim().length > 0 ? [data.correctAnswer] : []);
+    const generatedCode = typeof data.code === 'string' ? data.code : '';
+    const looksLikePython = /\bdef\s+\w+\s*\(/.test(generatedCode) || /\bclass\s+\w+/.test(generatedCode);
 
-    if (normalizedBugLines.length !== 3 || normalizedCorrectAnswers.length !== 3) {
-      console.warn('AI response did not include exactly 3 bugs. Falling back to template.');
+    if (normalizedBugLines.length !== 3 || normalizedCorrectAnswers.length !== 3 || !looksLikePython) {
+      console.warn('AI response did not match 3-bug Python requirements. Falling back to template.');
       return createAndStoreFallbackChallenge();
     }
     

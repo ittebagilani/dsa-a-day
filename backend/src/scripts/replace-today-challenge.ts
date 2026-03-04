@@ -14,6 +14,7 @@ async function run() {
     { date: today, is_active: true },
     { $set: { is_active: false } },
   );
+  await challenges.deleteMany({ date: today });
 
   const challenge = await generateDailyChallenge(today);
   if (!challenge) {
