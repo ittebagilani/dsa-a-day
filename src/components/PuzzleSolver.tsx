@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { CodeEditor } from "@/components/CodeEditor";
-import { DifficultyBadge } from "@/components/DifficultyBadge";
+import { CodeBlock } from "@/components/CodeBlock";
 import { Challenge } from "@/services/challenge.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProgress, useRecordAttempt } from "@/hooks/use-progress";
@@ -100,10 +100,20 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     [bugLines, correctAnswers],
   );
   const bugsRemaining = Math.max(0, bugTargets.length - solvedBugIndices.length);
-  const solutionPreview = useMemo(
-    () => correctAnswers.join("\n"),
-    [correctAnswers],
-  );
+  const correctedCode = useMemo(() => {
+    const lines = displayCode.split("\n");
+    for (const target of bugTargets) {
+      const replacement = correctAnswers[target.index] ?? "";
+      if (!replacement || target.lineIndex < 0 || target.lineIndex >= lines.length) {
+        continue;
+      }
+      const existingLine = lines[target.lineIndex] ?? "";
+      const indentation = existingLine.match(/^\s*/)?.[0] ?? "";
+      const normalizedReplacement = /^\s/.test(replacement) ? replacement : `${indentation}${replacement.trim()}`;
+      lines[target.lineIndex] = normalizedReplacement;
+    }
+    return lines.join("\n");
+  }, [bugTargets, correctAnswers, displayCode]);
 
   const readPersistedTimer = (): PersistedTimer | null => {
     try {
@@ -422,7 +432,6 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
           <span className="text-sm font-medium text-muted-foreground">
             {getChallengeTypeLabel(challenge.type)}
           </span>
-          <DifficultyBadge difficulty={challenge.difficulty} />
         </div>
         <h1 className="text-2xl font-bold mb-2">{challenge.title}</h1>
         <p className="text-muted-foreground">{challenge.description}</p>
@@ -528,28 +537,29 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
             </div>
           )}
 
-          {/* Answer Input */}
-          {status === "unsolved" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Edit the code and submit your fix:
-                </label>
-                <CodeEditor
-                  value={userAnswer}
-                  onChange={setUserAnswer}
-                  language={challengeLanguage}
-                  placeholder="Edit the code here..."
-                  minLines={Math.max(12, displayCode.split('\n').length)}
-                />
-              </div>
-              
-              {attempts > 0 && status === "unsolved" && (
-                <p className="text-sm text-warning">
-                  Not quite right. {3 - attempts} attempt{3 - attempts !== 1 ? 's' : ''} remaining.
-                </p>
-              )}
+          {/* Code Editor */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {status === "unsolved" ? "Edit the code and submit your fix:" : "Your submitted code:"}
+              </label>
+              <CodeEditor
+                value={userAnswer}
+                onChange={setUserAnswer}
+                language={challengeLanguage}
+                placeholder="Edit the code here..."
+                minLines={Math.max(12, displayCode.split('\n').length)}
+                readOnly={status !== "unsolved"}
+              />
+            </div>
+            
+            {attempts > 0 && status === "unsolved" && (
+              <p className="text-sm text-warning">
+                Not quite right. {3 - attempts} attempt{3 - attempts !== 1 ? 's' : ''} remaining.
+              </p>
+            )}
 
+            {status === "unsolved" && (
               <div className="flex items-center gap-3">
                 <Button variant="hero" onClick={handleSubmit} disabled={!userAnswer.trim()}>
                   Submit Answer
@@ -561,8 +571,8 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                   </Button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Success State (In-page) */}
           {status === "solved" && (
@@ -585,9 +595,11 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                     <div className="p-4 rounded-lg bg-secondary/50 border">
                       <h4 className="font-medium mb-2">Explanation</h4>
                       <p className="text-sm text-muted-foreground mb-3">{challenge.explanation}</p>
-                      <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                        {solutionPreview}
-                      </div>
+                      <CodeBlock
+                        code={correctedCode}
+                        language={challengeLanguage}
+                        highlightLines={bugLines}
+                      />
                     </div>
                   )}
                 </>
@@ -617,19 +629,13 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
 
               {isPremium && (
                 <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <h4 className="font-medium mb-2">Expected Fix</h4>
-                  <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                    {solutionPreview}
-                  </div>
-                </div>
-              )}
-
-              {isPremium && (
-                <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <h4 className="font-medium mb-2">Solution</h4>
-                  <div className="font-mono text-sm p-2 bg-code-bg rounded mb-3">
-                    {solutionPreview}
-                  </div>
+                  <h4 className="font-medium mb-2">Solution (Bug Lines Highlighted)</h4>
+                  <CodeBlock
+                    code={correctedCode}
+                    language={challengeLanguage}
+                    highlightLines={bugLines}
+                    className="mb-3"
+                  />
                   <p className="text-sm text-muted-foreground">{challenge.explanation}</p>
                 </div>
               )}

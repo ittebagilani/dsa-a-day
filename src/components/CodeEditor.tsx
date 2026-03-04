@@ -9,6 +9,7 @@ interface CodeEditorProps {
   placeholder?: string;
   className?: string;
   minLines?: number;
+  readOnly?: boolean;
 }
 
 export function CodeEditor({
@@ -18,6 +19,7 @@ export function CodeEditor({
   placeholder = "",
   className,
   minLines = 10,
+  readOnly = false,
 }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -84,6 +86,7 @@ export function CodeEditor({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onScroll={syncScroll}
+          readOnly={readOnly}
           placeholder={placeholder}
           wrap="off"
           spellCheck={false}

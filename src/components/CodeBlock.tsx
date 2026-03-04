@@ -5,6 +5,7 @@ interface CodeBlockProps {
   language?: CodeLanguage;
   showLineNumbers?: boolean;
   className?: string;
+  highlightLines?: number[];
 }
 
 export type CodeLanguage = "python" | "javascript";
@@ -123,10 +124,12 @@ export function CodeBlock({
   code, 
   language = "javascript",
   showLineNumbers = true,
-  className 
+  className,
+  highlightLines = [],
 }: CodeBlockProps) {
   const lines = code.split('\n');
   const highlightedLines = highlightCodeToHtml(code, language);
+  const highlightedSet = new Set(highlightLines);
   
   return (
     <div className={cn("code-block font-mono", className)}>
@@ -143,7 +146,10 @@ export function CodeBlock({
             return (
               <div
                 key={index}
-                className="flex items-start leading-6"
+                className={cn(
+                  "flex items-start leading-6",
+                  highlightedSet.has(index + 1) && "bg-warning/15 border-l-2 border-warning pl-1"
+                )}
               >
                 {showLineNumbers && (
                   <span className="select-none pr-3 sm:pr-4 text-muted-foreground/50 w-9 sm:w-10 text-right leading-6 shrink-0">
