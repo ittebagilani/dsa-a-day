@@ -6,6 +6,7 @@ export interface UserProgress {
   status: 'unsolved' | 'solved' | 'failed';
   attempts: number;
   hints_used: number;
+  solved_bug_indices?: number[];
   user_answer: string | null;
   time_spent_seconds: number;
   xp_earned?: number;
@@ -76,7 +77,8 @@ export const progressService = {
     status: 'unsolved' | 'solved' | 'failed',
     userAnswer: string,
     hintsUsed: number,
-    timeTaken: number
+    timeTaken: number,
+    solvedBugIndices: number[]
   ): Promise<{ xpEarned?: number; newStreak?: number }> {
     const response = await fetch(`${API_URL}/progress/${challengeId}`, {
       method: 'POST',
@@ -89,6 +91,7 @@ export const progressService = {
         user_answer: userAnswer,
         hints_used: hintsUsed,
         time_spent_seconds: timeTaken,
+        solved_bug_indices: solvedBugIndices,
       }),
     });
 

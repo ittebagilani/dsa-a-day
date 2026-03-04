@@ -24,7 +24,9 @@ export interface Challenge {
   description: string;
   code: string;
   bugLine?: number;
+  bugLines?: number[];
   correctAnswer: string;
+  correctAnswers?: string[];
   hints: string[];
   explanation: string;
   conceptTitle?: string;
@@ -131,101 +133,40 @@ const fallbackTemplates: Array<
 > = [
   {
     type: 'bug-fix',
-    difficulty: 'easy',
-    title: 'Merge Two Sorted Arrays',
-    description:
-      'Fix the merge function so it correctly merges two sorted arrays into one sorted array.',
-    code: `function merge(a, b) {
-  const result = [];
-  let i = 0, j = 0;
-
-  while (i < a.length && j < b.length) {
-    if (a[i] < b[j]) {
-      result.push(a[i]);
-      i++;
-    } else {
-      result.push(a[i]);
-      j++;
-    }
-  }
-
-  return result.concat(a.slice(i), b.slice(j));
-}`,
-    bugLine: 11,
-    correctAnswer: 'result.push(b[j]);',
-    hints: [
-      'Inspect the branch where a[i] is not smaller than b[j].',
-      'In each branch, push from the same pointer you increment.',
-      'One side of the merge is currently duplicated.',
-    ],
-    explanation:
-      'When b[j] is smaller (or equal), the code should push b[j] and increment j. Pushing a[i] there duplicates values from a and skips values from b.',
-    conceptTitle: 'Two Pointers',
-    conceptContent:
-      'Two pointers are commonly used to merge sorted sequences in linear time. Maintain the invariant that result is always sorted and built from consumed prefixes of both arrays.',
-  },
-  {
-    type: 'complete-line',
-    difficulty: 'medium',
-    title: 'Binary Search Midpoint',
-    description:
-      'Complete the missing line to perform binary search correctly.',
-    code: `function binarySearch(nums, target) {
-  let left = 0, right = nums.length - 1;
-
-  while (left <= right) {
-    // missing line
-    if (nums[mid] === target) return mid;
-    if (nums[mid] < target) left = mid + 1;
-    else right = mid - 1;
-  }
-  return -1;
-}`,
-    correctAnswer: 'const mid = Math.floor((left + right) / 2);',
-    hints: [
-      'The midpoint must be recomputed each loop iteration.',
-      'Use left and right bounds to derive mid.',
-      'The result should be an integer index.',
-    ],
-    explanation:
-      'Binary search repeatedly splits the search space in half. The midpoint must be recomputed from current bounds on each iteration.',
-    conceptTitle: 'Binary Search',
-    conceptContent:
-      'Binary search works on sorted arrays by comparing target to the midpoint and shrinking the search interval. It runs in O(log n) time.',
-  },
-  {
-    type: 'find-problem',
     difficulty: 'hard',
-    title: 'Longest Substring Without Repeating Characters',
+    title: 'Word Break Dynamic Programming',
     description:
-      'Find the logic issue in this sliding-window implementation and provide the corrected line.',
-    code: `function lengthOfLongestSubstring(s) {
-  let left = 0;
-  let best = 0;
-  const seen = new Map();
+      'Fix this Word Break implementation. It has three independent logic bugs.',
+    code: `function wordBreak(s, wordDict) {
+  const dict = new Set(wordDict);
+  const dp = new Array(s.length + 1).fill(false);
+  dp[0] = false;
 
-  for (let right = 0; right < s.length; right++) {
-    const ch = s[right];
-    if (seen.has(ch)) {
-      left = seen.get(ch) + 1;
+  for (let i = 1; i <= s.length; i++) {
+    for (let j = 0; j < i; j++) {
+      if (dp[j] && dict.has(s.slice(j, i - 1))) {
+        dp[i] = true;
+        break;
+      }
     }
-    seen.set(ch, right);
-    best = Math.max(best, right - left + 1);
   }
 
-  return best;
+  return dp[s.length - 1];
 }`,
-    correctAnswer: 'left = Math.max(left, seen.get(ch) + 1);',
+    bugLine: 4,
+    bugLines: [4, 8, 15],
+    correctAnswer: 'dp[0] = true;',
+    correctAnswers: ['dp[0] = true;', 'if (dp[j] && dict.has(s.slice(j, i))) {', 'return dp[s.length];'],
     hints: [
-      'left should never move backward.',
-      'A duplicate outside the active window should not shrink correctness.',
-      'Guard left update with current left value.',
+      'Check the DP base case.',
+      'Verify substring boundaries in JavaScript slice.',
+      'The final return should represent the full string.',
     ],
     explanation:
-      'If a character was seen before left, blindly setting left causes it to move backward and break the window invariant. Use Math.max to keep left monotonic.',
-    conceptTitle: 'Sliding Window',
+      'The base case must allow empty-prefix construction, substring end index should be i, and the final state is dp[s.length]. Those three fixes restore correct DP behavior.',
+    conceptTitle: 'Dynamic Programming',
     conceptContent:
-      'Sliding window tracks a contiguous region with maintained constraints. For uniqueness, store last seen indices and move the left boundary carefully.',
+      'Use a boolean DP where dp[i] means s[0..i) is segmentable. Transition by trying all split points j < i and checking both dp[j] and dict membership of s[j..i).',
   },
 ];
 
@@ -282,29 +223,28 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
   }
 
   const prompt = `Generate a Data Structures and Algorithms (DSA) coding challenge for a "DSA a Day" app.
-  The challenge should be of one of these types:
-  1. "bug-fix": A code snippet with a specific bug on one line.
-  2. "complete-line": A code snippet with one or two lines missing.
-  3. "find-problem": A logic error that's harder to spot.
+  The challenge type should be "bug-fix".
 
-  The difficulty should be one of: "easy", "medium", "hard".
+  The difficulty should be one of: "medium", "hard". Prefer "hard".
 
   Return ONLY a JSON object with the following structure:
   {
-    "type": "bug-fix" | "complete-line" | "find-problem",
-    "difficulty": "easy" | "medium" | "hard",
+    "type": "bug-fix",
+    "difficulty": "medium" | "hard",
     "title": "Short Descriptive Title",
     "description": "Clear explanation of the problem and what to do.",
-    "code": "The code snippet (Python or JavaScript). For bug-fix, include the bug.",
-    "bugLine": 1-indexed number of the line to fix (optional for find-problem),
-    "correctAnswer": "The exact corrected code or missing line.",
+    "code": "The code snippet (Python or JavaScript) containing exactly 3 real bugs.",
+    "bugLines": [1-indexed line number of bug #1, bug #2, bug #3],
+    "correctAnswers": ["exact corrected line for bug #1", "exact corrected line for bug #2", "exact corrected line for bug #3"],
     "hints": ["Hint 1", "Hint 2", "Hint 3"],
     "explanation": "Detailed explanation of the solution.",
     "conceptTitle": "Name of the core DSA concept involved",
     "conceptContent": "Detailed educational content about the concept (1-2 paragraphs)."
   }
 
-  CRITICAL: For "bug-fix" type, the 'bugLine' must be THE EXACT index of the line containing the bug in the 'code' string, counting from 1. Double check this count.
+  CRITICAL: Generate EXACTLY 3 bugs. No more, no less.
+  CRITICAL: 'bugLines' and 'correctAnswers' must both have length 3 and corresponding order.
+  CRITICAL: Each bug must be on a distinct line. Double check line numbering from 1.
   CRITICAL: Do not include marker comments like "# Bug here", "// bug here", or "# Missing line here" in the code.
   CRITICAL: Today's required primary topic is "${requiredTopic}". Build the challenge around this topic.
   CRITICAL: Avoid repeating these recent topics: ${recentTopics.length > 0 ? recentTopics.join(', ') : 'none'}.
@@ -334,6 +274,17 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
     if (!content) return null;
 
     const data = JSON.parse(content);
+    const normalizedBugLines = Array.isArray(data.bugLines)
+      ? data.bugLines.map((value: unknown) => Number(value)).filter((value: number) => Number.isInteger(value) && value > 0)
+      : (Number.isInteger(Number(data.bugLine)) && Number(data.bugLine) > 0 ? [Number(data.bugLine)] : []);
+    const normalizedCorrectAnswers = Array.isArray(data.correctAnswers)
+      ? data.correctAnswers.filter((answer: unknown): answer is string => typeof answer === 'string' && answer.trim().length > 0)
+      : (typeof data.correctAnswer === 'string' && data.correctAnswer.trim().length > 0 ? [data.correctAnswer] : []);
+
+    if (normalizedBugLines.length !== 3 || normalizedCorrectAnswers.length !== 3) {
+      console.warn('AI response did not include exactly 3 bugs. Falling back to template.');
+      return createAndStoreFallbackChallenge();
+    }
     
     // Get the highest ID to increment
     const lastChallenge = await collection.findOne({}, { sort: { id: -1 } });
@@ -341,8 +292,14 @@ export async function generateDailyChallenge(targetDate?: string): Promise<Chall
 
     const challenge: Challenge = {
       ...data,
+      type: 'bug-fix',
+      difficulty: data.difficulty === 'hard' ? 'hard' : 'medium',
       id: nextId,
       date: challengeDate,
+      bugLines: normalizedBugLines,
+      correctAnswers: normalizedCorrectAnswers,
+      bugLine: normalizedBugLines[0],
+      correctAnswer: normalizedCorrectAnswers[0],
       conceptTitle: normalizeConceptTopic(data.conceptTitle) || requiredTopic,
       hints: normalizeHints(data.hints),
       is_active: true

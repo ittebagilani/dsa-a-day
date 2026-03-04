@@ -3,6 +3,10 @@ import { CheckoutButton } from "@/components/subscription/CheckoutButton";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 interface PricingTier {
   name: string;
@@ -54,6 +58,49 @@ const tiers: PricingTier[] = [
 
 export function Pricing() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const { isPremium } = useSubscription();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleManageSubscription = async () => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to manage your subscription.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPortalLoading(true);
+    try {
+      const token = localStorage.getItem('auth-token');
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || 'Failed to open billing portal');
+      }
+
+      trackEvent('billing_portal_opened_client', { source: 'pricing_page' }, user.id);
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Unable to open subscription settings',
+        description: error?.message || 'Please try again.',
+      });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <>
@@ -90,12 +137,23 @@ export function Pricing() {
             ))}
           </ul>
           {tier.name === "Pro" ? (
+            isPremium ? (
+              <Button
+                variant="hero"
+                className="w-full text-base h-11"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                {portalLoading ? "Opening..." : "Manage Subscription"}
+              </Button>
+            ) : (
             <CheckoutButton
               priceId={tier.priceId}
               buttonText={tier.buttonText}
               variant={tier.buttonVariant as any}
               className="w-full text-base h-11"
             />
+            )
           ) : (
             <Button
               variant={tier.buttonVariant}

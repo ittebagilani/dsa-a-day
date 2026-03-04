@@ -137,6 +137,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
       hints_used?: number;
       hintsUsed?: number;
       time_spent_seconds?: number;
+      solved_bug_indices?: number[];
     };
     
     const collection = await getCollection('user_progress');
@@ -162,6 +163,13 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
     const normalizedHintsUsed = Number.isFinite(normalizedHintsUsedRaw)
       ? Math.max(0, Math.floor(Number(normalizedHintsUsedRaw)))
       : (existingProgress?.hints_used ?? existingProgress?.hintsUsed ?? 0);
+    const normalizedSolvedBugIndices = Array.from(
+      new Set(
+        (Array.isArray(updates.solved_bug_indices) ? updates.solved_bug_indices : [])
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value >= 0),
+      ),
+    ).sort((a, b) => a - b);
 
     const nextAttempts = Math.max(0, (existingProgress?.attempts ?? 0) + 1);
     const isFirstSolve = nextStatus === 'solved' && (!existingProgress || existingProgress.status !== 'solved');
@@ -208,6 +216,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
       user_answer: typeof updates.user_answer === 'string' ? updates.user_answer : (existingProgress?.user_answer ?? null),
       attempts: nextAttempts,
       hints_used: Math.max(existingProgress?.hints_used ?? 0, normalizedHintsUsed),
+      solved_bug_indices: normalizedSolvedBugIndices,
       time_spent_seconds: Number.isFinite(updates.time_spent_seconds)
         ? Math.max(0, Math.floor(Number(updates.time_spent_seconds)))
         : (existingProgress?.time_spent_seconds ?? 0),
@@ -240,6 +249,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
         status: nextStatus,
         attempts: nextAttempts,
         hints_used: normalizedHintsUsed,
+        solved_bug_indices: normalizedSolvedBugIndices,
         time_spent_seconds: updateData.time_spent_seconds,
         challenge_difficulty: challenge.difficulty,
         challenge_type: challenge.type,
@@ -254,6 +264,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
           challenge_id: challengeId,
           attempts: nextAttempts,
           hints_used: normalizedHintsUsed,
+          solved_bug_indices: normalizedSolvedBugIndices,
           xp_earned: xpEarned,
           streak: newStreak,
           time_spent_seconds: updateData.time_spent_seconds,
@@ -269,6 +280,7 @@ router.post('/:challengeId', authenticateToken, async (req: any, res) => {
           challenge_id: challengeId,
           attempts: nextAttempts,
           hints_used: normalizedHintsUsed,
+          solved_bug_indices: normalizedSolvedBugIndices,
           time_spent_seconds: updateData.time_spent_seconds,
           challenge_difficulty: challenge.difficulty,
           challenge_type: challenge.type,

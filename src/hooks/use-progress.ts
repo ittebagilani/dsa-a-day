@@ -21,14 +21,16 @@ export function useRecordAttempt() {
       userAnswer,
       hintsUsed,
       timeTaken,
+      solvedBugIndices,
     }: {
       challengeId: number;
       status: 'unsolved' | 'solved' | 'failed';
       userAnswer: string;
       hintsUsed: number;
       timeTaken: number;
+      solvedBugIndices: number[];
     }) =>
-      progressService.recordAttempt(challengeId, status, userAnswer, hintsUsed, timeTaken),
+      progressService.recordAttempt(challengeId, status, userAnswer, hintsUsed, timeTaken, solvedBugIndices),
     onSuccess: (_, variables) => {
       // Invalidate progress query to refetch
       queryClient.invalidateQueries({ queryKey: ['progress', variables.challengeId] });

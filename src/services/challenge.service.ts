@@ -9,7 +9,9 @@ export interface Challenge {
   description: string;
   code: string;
   bugLine?: number | null;
+  bugLines?: number[] | null;
   correctAnswer: string;
+  correctAnswers?: string[] | null;
   hints: string[];
   explanation: string;
   conceptTitle?: string;
@@ -51,6 +53,12 @@ const normalizeHints = (hints: unknown): string[] => {
 const normalizeChallenge = (challenge: Challenge): Challenge => ({
   ...challenge,
   hints: normalizeHints(challenge.hints),
+  bugLines: Array.isArray(challenge.bugLines) && challenge.bugLines.length > 0
+    ? challenge.bugLines
+    : (challenge.bugLine ? [challenge.bugLine] : null),
+  correctAnswers: Array.isArray(challenge.correctAnswers) && challenge.correctAnswers.length > 0
+    ? challenge.correctAnswers
+    : (challenge.correctAnswer ? [challenge.correctAnswer] : null),
 });
 
 export const challengeService = {

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { CodeBlock } from "@/components/CodeBlock";
 import { CodeEditor } from "@/components/CodeEditor";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
 import { Challenge } from "@/services/challenge.service";
@@ -50,6 +49,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [earnedXp, setEarnedXp] = useState(0);
   const [newStreak, setNewStreak] = useState<number | undefined>(undefined);
+  const [solvedBugIndices, setSolvedBugIndices] = useState<number[]>([]);
 
   const maxHints = isPremium ? 3 : 1;
   const timerStorageKey = `dcq.timer.${user?.id ?? 'guest'}.${challenge.id}`;
@@ -67,24 +67,43 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
         .replace(/^\s*(#|\/\/)\s*missing line here\s*$/gim, ""),
     [challenge.code]
   );
-  const expectedCode = useMemo(() => {
-    if (challenge.correctAnswer.includes("\n")) {
-      return challenge.correctAnswer;
-    }
-
-    const lines = displayCode.split("\n");
-    const lineIndex = (challenge.bugLine ?? 0) - 1;
-    if (lineIndex < 0 || lineIndex >= lines.length) {
-      return challenge.correctAnswer;
-    }
-
-    const existingLine = lines[lineIndex] ?? "";
-    const indentation = existingLine.match(/^\s*/)?.[0] ?? "";
-    const rawAnswer = challenge.correctAnswer.trim();
-    const replacement = /^\s/.test(rawAnswer) ? rawAnswer : `${indentation}${rawAnswer}`;
-    lines[lineIndex] = replacement;
-    return lines.join("\n");
-  }, [challenge.bugLine, challenge.correctAnswer, displayCode]);
+  const bugLines = useMemo(
+    () => {
+      if (Array.isArray(challenge.bugLines) && challenge.bugLines.length > 0) {
+        return challenge.bugLines;
+      }
+      return challenge.bugLine ? [challenge.bugLine] : [];
+    },
+    [challenge.bugLine, challenge.bugLines],
+  );
+  const correctAnswers = useMemo(
+    () => {
+      if (Array.isArray(challenge.correctAnswers) && challenge.correctAnswers.length > 0) {
+        return challenge.correctAnswers;
+      }
+      return challenge.correctAnswer ? [challenge.correctAnswer] : [];
+    },
+    [challenge.correctAnswer, challenge.correctAnswers],
+  );
+  const bugTargets = useMemo(
+    () =>
+      bugLines
+        .map((bugLine, index) => {
+          const correctAnswer = correctAnswers[index] ?? "";
+          return {
+            index,
+            lineIndex: bugLine - 1,
+            normalizedAnswer: correctAnswer.replace(/\s+/g, "").trim(),
+          };
+        })
+        .filter((target) => target.lineIndex >= 0 && target.normalizedAnswer.length > 0),
+    [bugLines, correctAnswers],
+  );
+  const bugsRemaining = Math.max(0, bugTargets.length - solvedBugIndices.length);
+  const solutionPreview = useMemo(
+    () => correctAnswers.join("\n"),
+    [correctAnswers],
+  );
 
   const readPersistedTimer = (): PersistedTimer | null => {
     try {
@@ -137,6 +156,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       setAttempts(progress.attempts);
       setHintsUsed(progress.hints_used);
       setUserAnswer(progress.user_answer || displayCode);
+      setSolvedBugIndices(Array.isArray(progress.solved_bug_indices) ? progress.solved_bug_indices : []);
       setTimeTaken(progress.time_spent_seconds || 0);
       if (progress.status === "solved" || progress.status === "failed") {
         setShowExplanation(true);
@@ -160,6 +180,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       setHintsUsed(0);
       setShowExplanation(false);
       setAttempts(0);
+      setSolvedBugIndices([]);
       setIsStarted(false);
       setStartTime(null);
       setTimeTaken(0);
@@ -219,44 +240,32 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     return answer.replace(/\s+/g, '').trim();
   };
 
-  const isSubmissionCorrect = (submittedCode: string): boolean => {
-    const normalizedSubmitted = normalizeCode(submittedCode);
-    const normalizedExpected = normalizeCode(expectedCode);
-    const normalizedCorrectLine = normalizeCode(challenge.correctAnswer);
-
-    // Best-case: full edited code exactly matches the expected corrected code.
-    if (normalizedSubmitted === normalizedExpected) {
-      return true;
-    }
-
-    // If the correct answer is a full snippet, accept when that snippet is present.
-    if (challenge.correctAnswer.includes("\n") && normalizedSubmitted.includes(normalizedCorrectLine)) {
-      return true;
-    }
-
+  const evaluateSolvedBugs = (submittedCode: string, existingSolved: number[]): number[] => {
     const userLines = submittedCode.split("\n");
     const originalLines = displayCode.split("\n");
-    const lineIndex = (challenge.bugLine ?? 0) - 1;
+    const solvedSet = new Set(existingSolved);
 
-    // If bugLine exists, allow exact line-level match at that line.
-    if (lineIndex >= 0 && lineIndex < userLines.length) {
-      if (normalizeCode(userLines[lineIndex]) === normalizedCorrectLine) {
-        return true;
+    for (const target of bugTargets) {
+      if (solvedSet.has(target.index)) {
+        continue;
+      }
+      const directLine = userLines[target.lineIndex] ?? "";
+      if (normalizeCode(directLine) === target.normalizedAnswer) {
+        solvedSet.add(target.index);
+        continue;
+      }
+      const maxLines = Math.max(userLines.length, originalLines.length);
+      for (let i = 0; i < maxLines; i += 1) {
+        const normalizedUserLine = normalizeCode(userLines[i] ?? "");
+        const normalizedOriginalLine = normalizeCode(originalLines[i] ?? "");
+        if (normalizedUserLine !== normalizedOriginalLine && normalizedUserLine === target.normalizedAnswer) {
+          solvedSet.add(target.index);
+          break;
+        }
       }
     }
 
-    // Fallback for imperfect metadata: any changed line matching correctAnswer is accepted.
-    const maxLines = Math.max(userLines.length, originalLines.length);
-    for (let i = 0; i < maxLines; i += 1) {
-      const normalizedUserLine = normalizeCode(userLines[i] ?? "");
-      const normalizedOriginalLine = normalizeCode(originalLines[i] ?? "");
-      const isChanged = normalizedUserLine !== normalizedOriginalLine;
-      if (isChanged && normalizedUserLine === normalizedCorrectLine) {
-        return true;
-      }
-    }
-
-    return false;
+    return Array.from(solvedSet).sort((a, b) => a - b);
   };
 
   const handleStart = () => {
@@ -294,7 +303,11 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     const duration = startTime ? Math.floor((now - startTime) / 1000) : 0;
     setTimeTaken(duration);
 
-    const isCorrect = isSubmissionCorrect(userAnswer);
+    const updatedSolvedBugIndices = evaluateSolvedBugs(userAnswer, solvedBugIndices);
+    const solvedNewBugsCount = updatedSolvedBugIndices.length - solvedBugIndices.length;
+    const isCorrect = updatedSolvedBugIndices.length === bugTargets.length && bugTargets.length > 0;
+    const nextBugsRemaining = Math.max(0, bugTargets.length - updatedSolvedBugIndices.length);
+    setSolvedBugIndices(updatedSolvedBugIndices);
 
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
@@ -318,9 +331,18 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
         is_correct: isCorrect,
         status: submissionStatus,
         hints_used: hintsUsed,
+        bugs_solved_count: updatedSolvedBugIndices.length,
+        bugs_remaining: nextBugsRemaining,
       },
       user?.id
     );
+
+    if (!isCorrect && solvedNewBugsCount > 0) {
+      toast({
+        title: `You fixed ${solvedNewBugsCount} bug${solvedNewBugsCount === 1 ? "" : "s"}`,
+        description: `${nextBugsRemaining} bug${nextBugsRemaining === 1 ? "" : "s"} left.`,
+      });
+    }
 
     // Save progress to database if user is logged in
     if (user) {
@@ -331,6 +353,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
           userAnswer,
           hintsUsed,
           timeTaken: duration,
+          solvedBugIndices: updatedSolvedBugIndices,
         });
 
         if (isCorrect) {
@@ -472,6 +495,23 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
               </div>
             </div>
           )}
+          {status === "unsolved" && bugTargets.length > 0 && (
+            <div className="rounded-lg border p-3 bg-card/50 mb-4">
+              <p className="text-sm font-medium mb-2">
+                Bugs Left: {bugsRemaining}/{bugTargets.length}
+              </p>
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${bugTargets.length}, minmax(0, 1fr))` }}>
+                {bugTargets.map((target) => (
+                  <div
+                    key={target.index}
+                    className={`h-2 rounded-full transition-colors ${
+                      solvedBugIndices.includes(target.index) ? "bg-success" : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Hints Section */}
           {currentHint.length > 0 && (
@@ -546,7 +586,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                       <h4 className="font-medium mb-2">Explanation</h4>
                       <p className="text-sm text-muted-foreground mb-3">{challenge.explanation}</p>
                       <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                        {challenge.correctAnswer}
+                        {solutionPreview}
                       </div>
                     </div>
                   )}
@@ -579,7 +619,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                 <div className="p-4 rounded-lg bg-secondary/50 border">
                   <h4 className="font-medium mb-2">Expected Fix</h4>
                   <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                    {challenge.correctAnswer}
+                    {solutionPreview}
                   </div>
                 </div>
               )}
@@ -588,7 +628,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                 <div className="p-4 rounded-lg bg-secondary/50 border">
                   <h4 className="font-medium mb-2">Solution</h4>
                   <div className="font-mono text-sm p-2 bg-code-bg rounded mb-3">
-                    {challenge.correctAnswer}
+                    {solutionPreview}
                   </div>
                   <p className="text-sm text-muted-foreground">{challenge.explanation}</p>
                 </div>
