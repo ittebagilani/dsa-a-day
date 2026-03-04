@@ -60,6 +60,15 @@ const createHighlightLineFn = (language: CodeLanguage) => (line: string): string
     }
   }
 
+  // Find operators and assignment symbols
+  const operatorRegex = /(\+|\-|\*|\/|%|==|!=|<=|>=|=|<|>|\||&|\^|!)/g;
+  while ((match = operatorRegex.exec(line)) !== null) {
+    const isInToken = tokens.some(t => match!.index >= t.start && match!.index < t.end);
+    if (!isInToken) {
+      tokens.push({ type: 'operator', value: match[0], start: match.index, end: match.index + match[0].length });
+    }
+  }
+
   // Find all function names (including built-ins)
   const functionRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
   while ((match = functionRegex.exec(line)) !== null) {
@@ -84,8 +93,16 @@ const createHighlightLineFn = (language: CodeLanguage) => (line: string): string
     }
 
     // Add the highlighted token
-    const className = `code-${token.type}`;
-    result += `<span class="${className}">${escapeHtml(token.value)}</span>`;
+    const tokenStyleByType: Record<string, string> = {
+      keyword: 'color:hsl(var(--code-keyword));',
+      string: 'color:hsl(var(--code-string));',
+      function: 'color:hsl(var(--code-function));',
+      comment: 'color:hsl(var(--code-comment));font-style:italic;',
+      number: 'color:hsl(var(--code-number));',
+      operator: 'color:hsl(var(--code-operator));',
+    };
+    const style = tokenStyleByType[token.type] || 'color:hsl(var(--code-text));';
+    result += `<span style="${style}">${escapeHtml(token.value)}</span>`;
     lastIndex = token.end;
   }
 

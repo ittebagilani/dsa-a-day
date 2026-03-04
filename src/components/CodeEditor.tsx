@@ -17,7 +17,7 @@ export function CodeEditor({
   language = "python",
   placeholder = "",
   className,
-  minLines = 3,
+  minLines = 10,
 }: CodeEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -27,6 +27,8 @@ export function CodeEditor({
     const lineCount = Math.max(minLines, valueLines.length);
     return Array.from({ length: lineCount }, (_, i) => i + 1);
   }, [minLines, value]);
+  const lineCount = lines.length;
+  const editorHeightPx = lineCount * 24 + 24;
 
   const highlightedLines = useMemo(() => {
     const normalizedValue = value || "";
@@ -53,7 +55,7 @@ export function CodeEditor({
           {language === "python" ? "Python" : "JavaScript"}
         </span>
       </div>
-      <div className="relative">
+      <div className="relative" style={{ height: `${editorHeightPx}px` }}>
         <div className="absolute inset-0 flex pointer-events-none">
           <div className="w-12 sm:w-14 shrink-0 select-none py-3 pr-2 text-muted-foreground/50 text-right bg-transparent border-r border-border/40">
             {lines.map((line) => (
@@ -62,7 +64,10 @@ export function CodeEditor({
               </div>
             ))}
           </div>
-          <pre ref={preRef} className="flex-1 m-0 py-3 px-3 overflow-auto text-sm leading-6">
+          <pre
+            ref={preRef}
+            className="flex-1 m-0 py-3 px-3 overflow-x-auto overflow-y-hidden text-sm leading-6 text-[hsl(var(--code-text))]"
+          >
             <code>
               {highlightedLines.map((html, index) => (
                 <div
@@ -82,7 +87,7 @@ export function CodeEditor({
           placeholder={placeholder}
           wrap="off"
           spellCheck={false}
-          className="relative z-10 w-full bg-transparent resize-y min-h-[120px] py-3 px-3 pl-[3.75rem] sm:pl-[4.25rem] font-mono text-sm leading-6 text-transparent caret-foreground outline-none"
+          className="relative z-10 w-full h-full bg-transparent resize-none py-3 px-3 pl-[3.75rem] sm:pl-[4.25rem] font-mono text-sm leading-6 text-transparent caret-foreground outline-none overflow-x-auto overflow-y-hidden"
           style={{ WebkitTextFillColor: "transparent", lineHeight: "1.5rem" }}
         />
         {!value && placeholder && (

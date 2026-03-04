@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/CodeBlock";
 import { CodeEditor } from "@/components/CodeEditor";
@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProgress, useRecordAttempt } from "@/hooks/use-progress";
 import { useToast } from "@/hooks/use-toast";
 import { trackEvent } from "@/lib/analytics";
+import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,34 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
   const currentHint = hintsUsed > 0 && hintsUsed <= challenge.hints.length 
     ? challenge.hints.slice(0, hintsUsed) 
     : [];
+  const challengeLanguage = challenge.code.includes("def ") ? "python" : "javascript";
+  const attemptsRemaining = Math.max(0, 3 - attempts);
+  const displayCode = useMemo(
+    () =>
+      challenge.code
+        .replace(/\s+#\s*bug here\s*$/gim, "")
+        .replace(/\s+\/\/\s*bug here\s*$/gim, "")
+        .replace(/^\s*(#|\/\/)\s*missing line here\s*$/gim, ""),
+    [challenge.code]
+  );
+  const expectedCode = useMemo(() => {
+    if (challenge.correctAnswer.includes("\n")) {
+      return challenge.correctAnswer;
+    }
+
+    const lines = displayCode.split("\n");
+    const lineIndex = (challenge.bugLine ?? 0) - 1;
+    if (lineIndex < 0 || lineIndex >= lines.length) {
+      return challenge.correctAnswer;
+    }
+
+    const existingLine = lines[lineIndex] ?? "";
+    const indentation = existingLine.match(/^\s*/)?.[0] ?? "";
+    const rawAnswer = challenge.correctAnswer.trim();
+    const replacement = /^\s/.test(rawAnswer) ? rawAnswer : `${indentation}${rawAnswer}`;
+    lines[lineIndex] = replacement;
+    return lines.join("\n");
+  }, [challenge.bugLine, challenge.correctAnswer, displayCode]);
 
   const readPersistedTimer = (): PersistedTimer | null => {
     try {
@@ -107,7 +136,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       setStatus(progress.status);
       setAttempts(progress.attempts);
       setHintsUsed(progress.hints_used);
-      setUserAnswer(progress.user_answer || "");
+      setUserAnswer(progress.user_answer || displayCode);
       setTimeTaken(progress.time_spent_seconds || 0);
       if (progress.status === "solved" || progress.status === "failed") {
         setShowExplanation(true);
@@ -126,7 +155,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
       }
     } else {
       // Reset state when no progress or new challenge
-      setUserAnswer("");
+      setUserAnswer(displayCode);
       setStatus("unsolved");
       setHintsUsed(0);
       setShowExplanation(false);
@@ -143,7 +172,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
         setElapsedTime(Math.floor((Date.now() - persistedTimer.startTime) / 1000));
       }
     }
-  }, [challenge.id, progress, timerStorageKey]);
+  }, [challenge.id, progress, timerStorageKey, displayCode]);
 
   useEffect(() => {
     if (!isStarted || !startTime || status !== "unsolved") {
@@ -186,12 +215,48 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     );
   }, [challenge.id, challenge.type, challenge.difficulty, user?.id]);
 
-  const normalizeAnswer = (answer: string): string => {
-    return answer
-      .trim()
-      .replace(/\s+/g, '')
-      .replace(/;\s*$/, '')
-      .toLowerCase();
+  const normalizeCode = (answer: string): string => {
+    return answer.replace(/\s+/g, '').trim();
+  };
+
+  const isSubmissionCorrect = (submittedCode: string): boolean => {
+    const normalizedSubmitted = normalizeCode(submittedCode);
+    const normalizedExpected = normalizeCode(expectedCode);
+    const normalizedCorrectLine = normalizeCode(challenge.correctAnswer);
+
+    // Best-case: full edited code exactly matches the expected corrected code.
+    if (normalizedSubmitted === normalizedExpected) {
+      return true;
+    }
+
+    // If the correct answer is a full snippet, accept when that snippet is present.
+    if (challenge.correctAnswer.includes("\n") && normalizedSubmitted.includes(normalizedCorrectLine)) {
+      return true;
+    }
+
+    const userLines = submittedCode.split("\n");
+    const originalLines = displayCode.split("\n");
+    const lineIndex = (challenge.bugLine ?? 0) - 1;
+
+    // If bugLine exists, allow exact line-level match at that line.
+    if (lineIndex >= 0 && lineIndex < userLines.length) {
+      if (normalizeCode(userLines[lineIndex]) === normalizedCorrectLine) {
+        return true;
+      }
+    }
+
+    // Fallback for imperfect metadata: any changed line matching correctAnswer is accepted.
+    const maxLines = Math.max(userLines.length, originalLines.length);
+    for (let i = 0; i < maxLines; i += 1) {
+      const normalizedUserLine = normalizeCode(userLines[i] ?? "");
+      const normalizedOriginalLine = normalizeCode(originalLines[i] ?? "");
+      const isChanged = normalizedUserLine !== normalizedOriginalLine;
+      if (isChanged && normalizedUserLine === normalizedCorrectLine) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   const handleStart = () => {
@@ -229,13 +294,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     const duration = startTime ? Math.floor((now - startTime) / 1000) : 0;
     setTimeTaken(duration);
 
-    const normalizedUser = normalizeAnswer(userAnswer);
-    const normalizedCorrect = normalizeAnswer(challenge.correctAnswer);
-
-    // Also check without the semicolon variations
-    const isCorrect = normalizedUser === normalizedCorrect ||
-      normalizedUser === normalizedCorrect.replace(';', '') ||
-      normalizedUser + ';' === normalizedCorrect;
+    const isCorrect = isSubmissionCorrect(userAnswer);
 
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
@@ -332,13 +391,6 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
     }
   };
 
-  const challengeLanguage = challenge.code.includes("def ") ? "python" : "javascript";
-  const attemptsRemaining = Math.max(0, 3 - attempts);
-  const displayCode = challenge.code
-    .replace(/\s+#\s*bug here\s*$/gim, "")
-    .replace(/\s+\/\/\s*bug here\s*$/gim, "")
-    .replace(/^\s*(#|\/\/)\s*missing line here\s*$/gim, "");
-
   return (
     <div className="w-full max-w-4xl mx-auto">
       {/* Header */}
@@ -382,7 +434,7 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
           </div>
           <h2 className="text-xl font-semibold">Ready to test your skills?</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Once you start, the timer will begin. You'll get 3 attempts to solve the daily challenge.
+            Once you start, the timer will begin. Edit the code directly and submit your fix.
           </p>
           <Button size="lg" onClick={handleStart} className="gap-2">
             <PlayCircle className="w-5 h-5" />
@@ -421,16 +473,6 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
             </div>
           )}
 
-          {/* Code Block */}
-          <div className="rounded-lg border bg-code-bg overflow-hidden mb-6">
-            <div className="p-4">
-              <CodeBlock
-                code={displayCode}
-                language={challengeLanguage}
-              />
-            </div>
-          </div>
-
           {/* Hints Section */}
           {currentHint.length > 0 && (
             <div className="mb-6 space-y-2">
@@ -451,16 +493,14 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  {challenge.type === "complete-line" 
-                    ? "Enter the missing line:" 
-                    : "Enter the fixed line:"}
+                  Edit the code and submit your fix:
                 </label>
                 <CodeEditor
                   value={userAnswer}
                   onChange={setUserAnswer}
                   language={challengeLanguage}
-                  placeholder="Write your code answer..."
-                  minLines={3}
+                  placeholder="Edit the code here..."
+                  minLines={Math.max(12, displayCode.split('\n').length)}
                 />
               </div>
               
@@ -495,15 +535,6 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                 </p>
               </div>
 
-              {userAnswer.trim() && (
-                <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <h4 className="font-medium mb-2">Your Answer</h4>
-                  <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                    {userAnswer}
-                  </div>
-                </div>
-              )}
-              
               {isPremium && (
                 <>
                   <Button variant="outline" onClick={() => setShowExplanation(!showExplanation)}>
@@ -523,9 +554,12 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
               )}
               {!isPremium && (
                 <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mb-3">
                     Upgrade to Pro to see full explanations.
                   </p>
+                  <Button size="sm" asChild>
+                    <Link to="/pricing">Upgrade to Pro</Link>
+                  </Button>
                 </div>
               )}
             </div>
@@ -541,11 +575,11 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
                 </p>
               </div>
 
-              {isPremium && userAnswer.trim() && (
+              {isPremium && (
                 <div className="p-4 rounded-lg bg-secondary/50 border">
-                  <h4 className="font-medium mb-2">Your Last Answer</h4>
+                  <h4 className="font-medium mb-2">Expected Fix</h4>
                   <div className="font-mono text-sm p-2 bg-code-bg rounded">
-                    {userAnswer}
+                    {challenge.correctAnswer}
                   </div>
                 </div>
               )}
