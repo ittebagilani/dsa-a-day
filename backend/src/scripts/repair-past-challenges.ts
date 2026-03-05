@@ -11,7 +11,9 @@ type ChallengeDoc = {
   title?: string;
   code?: string;
   type?: string;
+  bugLine?: number;
   bugLines?: number[];
+  correctAnswer?: string;
   correctAnswers?: string[];
   is_active?: boolean;
 };
@@ -24,15 +26,21 @@ const normalizeTitle = (title: string): string =>
 
 function isInvalidChallenge(challenge: ChallengeDoc, duplicateTitles: Set<string>): boolean {
   const code = typeof challenge.code === 'string' ? challenge.code : '';
-  const bugLines = Array.isArray(challenge.bugLines) ? challenge.bugLines : [];
-  const correctAnswers = Array.isArray(challenge.correctAnswers) ? challenge.correctAnswers : [];
+  const bugLines = Array.isArray(challenge.bugLines)
+    ? challenge.bugLines
+    : (Number.isInteger(challenge.bugLine) ? [Number(challenge.bugLine)] : []);
+  const correctAnswers = Array.isArray(challenge.correctAnswers)
+    ? challenge.correctAnswers
+    : (typeof challenge.correctAnswer === 'string' && challenge.correctAnswer.trim().length > 0
+      ? [challenge.correctAnswer]
+      : []);
   const titleKey = normalizeTitle(challenge.title ?? '');
 
   return (
     challenge.type !== 'bug-fix' ||
     !looksLikePython(code) ||
-    bugLines.length !== 3 ||
-    correctAnswers.length !== 3 ||
+    bugLines.length !== 1 ||
+    correctAnswers.length !== 1 ||
     duplicateTitles.has(titleKey)
   );
 }
@@ -54,7 +62,9 @@ async function run() {
           title: 1,
           code: 1,
           type: 1,
+          bugLine: 1,
           bugLines: 1,
+          correctAnswer: 1,
           correctAnswers: 1,
           is_active: 1,
         },
@@ -128,4 +138,3 @@ run()
     console.error(error);
     process.exit(1);
   });
-

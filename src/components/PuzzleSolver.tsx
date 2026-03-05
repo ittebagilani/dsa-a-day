@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Timer, Trophy, Flame, PlayCircle } from "lucide-react";
+import { Timer, Trophy, Flame, PlayCircle, Target, Bug } from "lucide-react";
 
 interface PuzzleSolverProps {
   challenge: Challenge;
@@ -485,39 +485,51 @@ export function PuzzleSolver({ challenge, isPremium = false, onComplete }: Puzzl
           </div>
 
           {status === "unsolved" && (
-            <div className="rounded-lg border p-3 bg-card/50 mb-4">
-              <p className="text-sm font-medium mb-2">
-                Chances Left: {attemptsRemaining}/3
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {[0, 1, 2].map((slot) => {
-                  const isAvailable = slot < attemptsRemaining;
-                  return (
-                    <div
-                      key={slot}
-                      className={`h-2 rounded-full transition-colors ${
-                        isAvailable ? "bg-success" : "bg-destructive/40"
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {status === "unsolved" && bugTargets.length > 0 && (
-            <div className="rounded-lg border p-3 bg-card/50 mb-4">
-              <p className="text-sm font-medium mb-2">
-                Bugs Left: {bugsRemaining}/{bugTargets.length}
-              </p>
-              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${bugTargets.length}, minmax(0, 1fr))` }}>
-                {bugTargets.map((target) => (
-                  <div
-                    key={target.index}
-                    className={`h-2 rounded-full transition-colors ${
-                      solvedBugIndices.includes(target.index) ? "bg-success" : "bg-muted"
-                    }`}
-                  />
-                ))}
+            <div className="mb-5 rounded-xl border-2 border-primary/35 bg-gradient-to-r from-primary/10 via-card to-warning/10 p-4 shadow-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-card/80 border p-3">
+                  <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground mb-2 font-semibold">
+                    <Target className="w-4 h-4 text-primary" />
+                    Attempts Left
+                  </div>
+                  <div className="text-3xl font-extrabold leading-none text-primary">
+                    {attemptsRemaining}
+                    <span className="text-base font-semibold text-muted-foreground"> / 3</span>
+                  </div>
+                  <p className="text-sm mt-2 text-muted-foreground">
+                    {attemptsRemaining === 1 ? "Final try" : `${attemptsRemaining} tries remaining`}
+                  </p>
+                </div>
+
+                {bugTargets.length > 0 && (
+                  <div className="rounded-lg bg-card/80 border p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground mb-2 font-semibold">
+                      <Bug className="w-4 h-4 text-warning" />
+                      Bugs Left
+                    </div>
+                    <div className="text-3xl font-extrabold leading-none text-warning">
+                      {bugsRemaining}
+                      <span className="text-base font-semibold text-muted-foreground"> / {bugTargets.length}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {bugTargets.map((target, index) => {
+                        const solved = solvedBugIndices.includes(target.index);
+                        return (
+                          <span
+                            key={target.index}
+                            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold border ${
+                              solved
+                                ? "bg-success/15 border-success/40 text-success"
+                                : "bg-warning/10 border-warning/40 text-warning"
+                            }`}
+                          >
+                            Bug {index + 1}: {solved ? "Fixed" : "Open"}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
